@@ -1,0 +1,15 @@
+# Compiler output. StreetGolf.cs is the deliverable and IS tracked; these are not.
+build/
+
+# ScriptHookVDotNet reference assemblies used only to check the script compiles
+# against each supported API version. Third party binaries, fetched by
+# tools/get-apiref.sh — see apiref/README.md.
+apiref/*.dll
+
+# Release staging and archives. The zip is attached to a GitHub Release instead.
+release/StreetGolf/
+release/*.zip
+
+# Written by the mod at runtime, next to the script
+StreetGolf.log
+StreetGolf.records.txt

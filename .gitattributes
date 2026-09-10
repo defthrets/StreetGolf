@@ -1,0 +1,11 @@
+# Keep line endings stable. build.sh assembles StreetGolf.cs with LF and the
+# build is checked byte-for-byte, so letting git rewrite endings on checkout
+# would make the same source produce a "changed" file on another machine.
+* text=auto eol=lf
+
+# Never touch these
+*.dll binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.mp4 binary

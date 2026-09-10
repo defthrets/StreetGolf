@@ -1,0 +1,81 @@
+⛳ STREET GOLF — a driving range anywhere in Los Santos.
+
+Stand where you are and hit ball after ball into the traffic. 🏌️ No hole, no course, no walking after the ball. It is built on GTA V's own golf minigame, so it uses the real swing animations, the real club props, the real golf ball flown by the game's physics, and the game's own golf sound set.
+
+Tee up on a street, a rooftop, the freeway or the beach. Line one up, swing, and watch what happens. 💥
+
+
+✨ WHAT IT DOES
+
+⛳ Play anywhere. You stay put and a fresh ball is teed up after every shot, so you can rapid-fire at whatever drives past.
+
+🎯 Aim by looking. Point the camera where you want it to go. Hold to charge the power meter, release inside the sweet spot for a clean strike.
+
+🎥 Watch it land. The camera follows the ball for as long as you like, even after it stops rolling, until you tap the next-ball button.
+
+🌀 Bend it in the air. Lean on the ball mid-flight to curl it around a bus, with less authority once it is bouncing and rolling.
+
+🚗 Real damage. Cars take a dent exactly where the ball lands, lose body health, set off their alarm and rock on their springs. Hard hits knock windows out and take tyres off rims.
+
+🧱 Marks everything. Chipped concrete, cracked render and spidered glass wherever the ball hits.
+
+🏃 FORE! Pedestrians ragdoll and take damage that scales with how hard you hit it.
+
+🏌️ Twelve clubs. The standard four, a flatter set that runs out along a street instead of arcing over it, and a third set swung much harder.
+
+📊 Full stats. Live carry distance, balls hit, cars hit, pedestrians hit, and a longest drive that persists between sessions.
+
+
+💣 BALL MODES
+
+⚪ Normal — an ordinary golf ball.
+🔥 Fireball — sets light to everything it touches and leaves fires burning.
+💥 Boom — flies normally, then detonates where it lands.
+🚀 Super Shot — every club multiplied. Fifty times, by default. Absurd.
+
+
+👮 POLICE
+
+The cops are handled so you can actually play. For the first three minutes they ignore you completely. After that they still do not care about a man hitting golf balls until you drop three people in quick succession, and being unseen overrides everything. At one and two stars they carry nightsticks and tasers instead of guns, as long as you have not drawn a firearm yourself. 🚔
+
+All of it can be switched off with one setting, or one key, if you would rather be shot at.
+
+
+📦 INSTALL
+
+1. Install Script Hook V — http://www.dev-c.com/gtav/scripthookv/
+2. Install ScriptHookVDotNet v3 — https://github.com/scripthookvdotnet/scripthookvdotnet/releases
+3. Drop StreetGolf.cs and StreetGolf.ini into your GTA V scripts folder.
+4. Start the game and press F3. ⛳
+
+⚠️ If you have both GTA V Legacy and Enhanced installed, they are separate folders with separate scripts folders. Install into the one you actually launch.
+
+
+🎮 CONTROLS
+
+Toggle — F3 / hold LT + A
+Aim — mouse / right stick
+Swing — hold SPACE or LMB / hold RT, release to hit
+Change club — Q and E, or the mouse wheel / LB and RB
+Next ball, stop watching — SPACE / A
+Steer the ball — W A S D / left stick
+Settings list — arrow keys / D-pad
+Ball mode — M
+Police on and off — K
+Fresh ball — N
+Quit — BACKSPACE / B
+
+
+⚙️ SETTINGS
+
+Ten settings are on the in-game list, reachable with the D-pad or the arrow keys while you play: ball mode, police, batons, impact power, dents, marks, trail, aim line, after-touch and units. Everything else lives in StreetGolf.ini — club speeds and lofts, trail thickness, the sweet spot, police timings and more.
+
+
+✅ REQUIREMENTS
+
+Script Hook V
+ScriptHookVDotNet v3 — tested on 3.6, the 3.7 nightlies and 3.9 Enhanced
+
+Distances follow the game's own measurement setting, the same as vanilla golf. The HUD is sized off screen height, so it will not stretch on an ultrawide.
+
+Credit to Rockstar for the golf assets. This just lets you use them in the street. ⛳
