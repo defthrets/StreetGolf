@@ -4,9 +4,12 @@
 #
 #   ./build.sh            assemble and compile-check
 #   ./build.sh --install  also copy into the game's scripts folder
+#   ./build.sh --zip      also build release/StreetGolf-<version>.zip
 #
 # The reference assemblies in apiref/ are not in the repo; run
-# tools/get-apiref.sh once to fetch them.
+# tools/get-apiref.sh once to fetch them. The icons in StreetGolf/icons are
+# drawn by tools/make_icons.py and ARE in the repo, so they need not be
+# regenerated to build.
 
 set -u
 cd "$(dirname "$0")"
@@ -34,6 +37,8 @@ for p in parts:
 io.open('StreetGolf.cs','w',encoding='utf-8-sig',newline='\n').write(''.join(out))
 print('assembled StreetGolf.cs from %d parts' % len(parts))
 " || exit 1
+
+VERSION=$(sed -n 's/.*const string VERSION = "\([^"]*\)".*/\1/p' src/p1.cs | head -1)
 
 # ---- compile against each supported API version ---------------------------
 mkdir -p build
@@ -73,16 +78,52 @@ if [ "$fail" -ne 0 ]; then
 fi
 
 echo
-echo "all $found version(s) compile clean"
+echo "all $found version(s) compile clean  (Street Golf $VERSION)"
+
+# ---- the icons must be there: the HUD draws without them, but a release
+#      or an install without them is a mistake
+icons=$(ls StreetGolf/icons/*.png 2>/dev/null | wc -l)
+if [ "$icons" -lt 1 ]; then
+  echo "StreetGolf/icons is empty - run: python tools/make_icons.py"
+  exit 1
+fi
 
 # ---- optional install -----------------------------------------------------
-if [ "${1:-}" = "--install" ]; then
-  GAME="/c/Program Files (x86)/Steam/steamapps/common/Grand Theft Auto V Enhanced/scripts"
-  if [ -d "$GAME" ]; then
-    cp StreetGolf.cs "$GAME/StreetGolf.cs" && cp StreetGolf.ini "$GAME/StreetGolf.ini" \
-      && echo "installed to $GAME"
-  else
-    echo "game scripts folder not found at $GAME"
-    exit 1
-  fi
-fi
+for arg in "$@"; do
+  case "$arg" in
+    --install)
+      GAME="/c/Program Files (x86)/Steam/steamapps/common/Grand Theft Auto V Enhanced/scripts"
+      if [ -d "$GAME" ]; then
+        mkdir -p "$GAME/StreetGolf/icons" \
+          && cp StreetGolf.cs "$GAME/StreetGolf.cs" \
+          && cp StreetGolf.ini "$GAME/StreetGolf.ini" \
+          && cp StreetGolf/icons/*.png "$GAME/StreetGolf/icons/" \
+          && echo "installed to $GAME  ($icons icons)"
+      else
+        echo "game scripts folder not found at $GAME"
+        exit 1
+      fi
+      ;;
+    --zip)
+      # What a user unpacks: a scripts folder to merge into the game's, and
+      # the README beside it.
+      python -c "
+import zipfile, glob, os
+v = '$VERSION'
+os.makedirs('release', exist_ok=True)
+out = 'release/StreetGolf-%s.zip' % v
+with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
+    z.write('README.md', 'README.md')
+    z.write('StreetGolf.cs', 'scripts/StreetGolf.cs')
+    z.write('StreetGolf.ini', 'scripts/StreetGolf.ini')
+    for p in sorted(glob.glob('StreetGolf/icons/*.png')):
+        z.write(p, 'scripts/StreetGolf/icons/' + os.path.basename(p))
+print('wrote', out, os.path.getsize(out), 'bytes')
+" || exit 1
+      ;;
+    *)
+      echo "unknown option: $arg"
+      exit 1
+      ;;
+  esac
+done

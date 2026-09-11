@@ -271,7 +271,7 @@
             ballMode = (BallMode)(((int)ballMode + 1) % MODE_COUNT);
             clubPop = 1f;
             Function.Call(Hash.PLAY_SOUND_FRONTEND, -1, "NAV_UP_DOWN", "HUD_FRONTEND_DEFAULT_SOUNDSET", true);
-            Notify("~y~" + MODE_NAMES[(int)ballMode] + "~s~ - " + MODE_BLURB[(int)ballMode] + ".");
+            ModeToast();
         }
         else if (wantPolice && mode != Mode.Off)
         {
@@ -279,9 +279,7 @@
             if (policeWanted) noticedNotified = false;
             else RestorePolice();
             Function.Call(Hash.PLAY_SOUND_FRONTEND, -1, "NAV_UP_DOWN", "HUD_FRONTEND_DEFAULT_SOUNDSET", true);
-            Notify(policeWanted
-                ? "~y~Street Golf:~s~ police reactions back on."
-                : "~b~Street Golf:~s~ police reactions off. Swing away.");
+            PoliceToast();
         }
     }
 
@@ -336,7 +334,11 @@
         SpawnTeeBall(ped);
         SetMode(Mode.Ready);
         Log("  started");
-        Notify("~g~Street Golf~s~ - swing away. " + (UsingPad() ? "hold ~b~RT~s~ to swing, ~b~A~s~ for the next ball." : "hold ~b~SPACE~s~ to swing."));
+        lastMenuMove = Game.GameTime;     // the settings drawer shows itself for a moment, so it gets found
+        if (showHud)
+            Toast("swing", "SWING AWAY", UsingPad() ? "hold RT to swing, A for the next ball" : "hold SPACE to swing", C_GREEN, 3600);
+        else
+            Notify("~g~Street Golf~s~ - swing away. " + (UsingPad() ? "hold ~b~RT~s~ to swing, ~b~A~s~ for the next ball." : "hold ~b~SPACE~s~ to swing."));
     }
 
     void Shutdown() { Shutdown(false); }
@@ -443,7 +445,7 @@
                 if (!noticedNotified)
                 {
                     noticedNotified = true;
-                    Notify("~r~Street Golf:~s~ that is too many people. The police have noticed.");
+                    Toast("badge", "POLICE NOTICED", "that is too many people", C_RED, 3000);
                 }
             }
             return;
@@ -455,8 +457,7 @@
 
         if (graceLeft <= 0f)
         {
-            Notify("~y~Street Golf:~s~ grace over. They will only take an interest if you drop "
-                + heatAfterPeds + " people.");
+            Toast("clock", "GRACE OVER", "nobody cares until " + heatAfterPeds + " people go down", C_AMBER, 3200);
         }
     }
 
@@ -898,7 +899,7 @@
         strikePop = 1f;
         PlaySoundOn(BASE_SOUND[Base()], b);
         if (!IsPutter()) PlayFxAt("scr_golf_strike_fairway", origin, aimDeg);
-        if (sweet) Flash("~g~SWEET SPOT", 1200);
+        if (sweet) Toast("swing", "SWEET SPOT", "dead straight, and a little extra", C_GREEN, 1400);
     }
 
     Vector3 ShapeLaunch(Vector3 vel, Vector3 dir, float speed)
@@ -925,8 +926,8 @@
             case 1: return "POLICE";
             case 2: return "BATONS";
             case 3: return "IMPACT";
-            case 4: return "DENTS";
-            case 5: return "MARKS";
+            case 4: return "CAR DAMAGE";
+            case 5: return "WALL MARKS";
             case 6: return "TRAIL";
             case 7: return "AIM LINE";
             case 8: return "AFTERTOUCH";
@@ -936,6 +937,70 @@
     }
 
     static string OnOff(bool v) { return v ? "ON" : "OFF"; }
+
+    string MenuIcon(int i)
+    {
+        switch (i)
+        {
+            case 0: return MODE_ICONS[(int)ballMode];
+            case 1: return "badge";
+            case 2: return "baton";
+            case 3: return "impact";
+            case 4: return "dent";
+            case 5: return "crack";
+            case 6: return "trail";
+            case 7: return "aim";
+            case 8: return "curve";
+            case 9: return "ruler";
+        }
+        return "ball";
+    }
+
+    // one line under the list, for the row that is selected
+    string MenuHint(int i)
+    {
+        switch (i)
+        {
+            case 0: return "plain, on fire, explosive, or just absurd";
+            case 1: return "the master switch for police interest";
+            case 2: return "low stars bring sticks and tasers";
+            case 3: return "how hard the ball hits everything";
+            case 4: return "dents, glass and tyres where it lands";
+            case 5: return "chips and cracks in whatever it strikes";
+            case 6: return "the ribbon the ball leaves behind";
+            case 7: return "the arc and the ring where it lands";
+            case 8: return "lean on the ball in flight with the stick";
+            case 9: return "yards, metres, or the game's own setting";
+        }
+        return "";
+    }
+
+    // rows that are a switch are drawn as one, the rest show their value
+    static bool MenuIsToggle(int i)
+    {
+        return i == 1 || i == 2 || i == 4 || i == 5 || i == 6 || i == 7 || i == 8;
+    }
+
+    bool MenuBool(int i)
+    {
+        switch (i)
+        {
+            case 1: return policeWanted;
+            case 2: return lessLethalCops;
+            case 4: return carDamage;
+            case 5: return impactMarks;
+            case 6: return trailEnabled;
+            case 7: return aimLine;
+            case 8: return airControl;
+        }
+        return false;
+    }
+
+    void PoliceToast()
+    {
+        if (policeWanted) Toast("badge", "POLICE ON", "they can take an interest again", C_AMBER, 2200);
+        else Toast("badge", "POLICE OFF", "nobody is coming, swing away", C_SKY, 2200);
+    }
 
     string MenuValue(int i)
     {
@@ -962,7 +1027,7 @@
             case 0:
                 ballMode = (BallMode)(((int)ballMode + dir + MODE_COUNT) % MODE_COUNT);
                 clubPop = 1f;
-                Notify("~y~" + MODE_NAMES[(int)ballMode] + "~s~ - " + MODE_BLURB[(int)ballMode] + ".");
+                ModeToast();
                 break;
             case 1:
                 policeWanted = !policeWanted;

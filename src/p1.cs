@@ -1,5 +1,5 @@
-// =====================================================================
-//  STREET GOLF  1.0.0  -  by spitmux
+﻿// =====================================================================
+//  STREET GOLF  1.1.0  -  by spitmux
 //
 //  A driving range anywhere in Los Santos. You stand where you are and
 //  hit ball after ball at the traffic. No hole, no course, no walking
@@ -34,7 +34,7 @@ using Control = GTA.Control;
 public class StreetGolf : Script
 {
     // ---------------- game assets ----------------
-    const string VERSION = "1.0.0";
+    const string VERSION = "1.1.0";
     const string AUTHOR = "spitmux";
 
     const string BALL_MODEL = "prop_golf_ball";
@@ -62,6 +62,10 @@ public class StreetGolf : Script
     static readonly string[] BASE_SOUND = { "GOLF_SWING_TEE_MASTER", "GOLF_SWING_FAIRWAY_IRON_MASTER", "GOLF_SWING_CHIP_MASTER", "GOLF_SWING_PUTT_MASTER" };
     const int CLUB_COUNT = 12;
     const int BASE_PUTTER = 3;
+    // HUD copy for the clubs: the icon file for each base club, and a tag
+    // for each set of four
+    static readonly string[] CLUB_ICONS = { "driver", "iron", "wedge", "putter" };
+    static readonly string[] SET_TAGS = { "SET 1 - STANDARD", "SET 2 - LOW AND LONG", "SET 3 - HEAVY" };
 
     enum Mode { Off, Ready, Backswing, Swing, Watch }
 
@@ -75,6 +79,13 @@ public class StreetGolf : Script
         "flies like any other ball, then detonates where it lands",
         "every club multiplied, and it is not subtle" };
     const int MODE_COUNT = 4;
+    static readonly string[] MODE_ICONS = { "ball", "flame", "bomb", "super" };
+    // the same thing said in the width of the card
+    static readonly string[] MODE_SHORT = {
+        "a plain golf ball",
+        "lights up whatever it touches",
+        "detonates where it lands",
+        "every club multiplied" };
 
     // ---------------- settings ----------------
     Keys keyToggle = Keys.F3;
@@ -98,6 +109,7 @@ public class StreetGolf : Script
     bool pedsRagdoll = true;
     bool golfSounds = true;
     bool showHud = true;
+    float menuAutoHide = 6f;      // seconds the settings drawer stays open after the d-pad was last touched; 0 keeps it open
     int maxLiveBalls = 10;
     float ballLifetime = 22f;
     float sweetLo = 0.84f, sweetHi = 0.96f;
@@ -166,7 +178,6 @@ public class StreetGolf : Script
     bool announced;
     int menuIndex;
     int lastMenuMove;
-    float menuRimY;
     const int MENU_COUNT = 10;
     int dbgProbes, dbgHits, dbgImpacts;
     string dbgLast = "-";
@@ -186,8 +197,6 @@ public class StreetGolf : Script
     float lastShotDist;
     float bestShotDist;
     float liveDist;
-    string flashText = "";
-    int flashUntil;
 
     // ---------------- flying balls ----------------
     class Shot
@@ -314,6 +323,8 @@ public class StreetGolf : Script
         pedsRagdoll = GetBool(kv, "PedsRagdoll", pedsRagdoll);
         golfSounds = GetBool(kv, "Sounds", golfSounds);
         showHud = GetBool(kv, "Hud", showHud);
+        menuAutoHide = GetFloat(kv, "MenuAutoHide", menuAutoHide);
+        if (menuAutoHide < 0f) menuAutoHide = 0f;
         debugHud = GetBool(kv, "Debug", debugHud);
         maxLiveBalls = (int)GetFloat(kv, "MaxBalls", maxLiveBalls);
         if (maxLiveBalls < 1) maxLiveBalls = 1;

@@ -183,52 +183,128 @@
     // =====================================================================
     //  HUD
     //
-    //  Built to match BareMinimum's inventory screen: its palette to the
-    //  byte, its rounded panels and left accent stripe, its letter tracked
-    //  titles in the label font, everything sized off screen HEIGHT, and its
-    //  arrive / chase / pulse animation feel.
+    //  Four pieces.
+    //    THE CARD, top left. Title, the club in hand with its carry and a
+    //      rail showing where it sits in the twelve, the ball, the session
+    //      figures, the police, and a settings drawer the d-pad slides open.
+    //    THE TEE MARKER, under the golfer's feet. Club, carry, and the power
+    //      meter, right where you are looking when you swing.
+    //    THE FEED, right hand side. A short stack of toasts for what the
+    //      ball just did.
+    //    THE CARRY, top centre, while the camera is on the ball.
+    //  and a strip of button prompts along the bottom that uses the game's
+    //  own button glyphs, so it shows the right buttons for a pad or a
+    //  keyboard without being told.
     //
-    //  Two pieces. Session figures sit in a small panel top left. The golf
-    //  itself - club, reach, power - rides in a chip under the golfer's feet,
-    //  where you are already looking.
+    //  Everything is laid out on a 720 tall canvas whose width follows the
+    //  aspect ratio, so nothing stretches on an ultrawide. The icons are
+    //  white silhouettes in StreetGolf/icons, tinted here; the fonts are the
+    //  game's, with Pricedown for the title and the big number. Every
+    //  animation runs off frame time, and every panel is a plain square:
+    //  rounded corners built from sub pixel bands crawled from one frame to
+    //  the next.
     // =====================================================================
 
-    // BareMinimum.UI.Palette, verbatim
-    static readonly Color P_TEXT = Color.FromArgb(245, 240, 240, 246);
-    static readonly Color P_DIM = Color.FromArgb(200, 190, 190, 198);
-    static readonly Color P_OFF = Color.FromArgb(160, 150, 150, 158);
-    static readonly Color P_BRAND = Color.FromArgb(255, 240, 170, 56);
-    static readonly Color P_DEEP = Color.FromArgb(255, 206, 96, 24);
-    static readonly Color P_CASH = Color.FromArgb(255, 126, 190, 79);
-    static readonly Color P_WARN = Color.FromArgb(255, 232, 177, 44);
-    static readonly Color P_DANGER = Color.FromArgb(255, 214, 69, 58);
-    static readonly Color P_COLD = Color.FromArgb(255, 120, 198, 226);
-    static readonly Color P_BODY = Color.FromArgb(240, 10, 11, 14);
-    static readonly Color P_TRACK = Color.FromArgb(225, 4, 5, 7);
+    // ---- palette ----------------------------------------------------------
+    static readonly Color C_INK = Color.FromArgb(232, 12, 15, 18);       // panel body
+    static readonly Color C_INK2 = Color.FromArgb(255, 25, 30, 36);      // raised tiles
+    static readonly Color C_LINE = Color.FromArgb(44, 255, 255, 255);    // hairlines
+    static readonly Color C_TEXT = Color.FromArgb(255, 244, 240, 232);   // cream
+    static readonly Color C_MUTE = Color.FromArgb(255, 168, 172, 178);
+    static readonly Color C_DIMM = Color.FromArgb(255, 98, 104, 112);
+    static readonly Color C_GREEN = Color.FromArgb(255, 106, 216, 118);  // fairway
+    static readonly Color C_AMBER = Color.FromArgb(255, 255, 178, 56);   // selected, warned
+    static readonly Color C_RED = Color.FromArgb(255, 234, 74, 62);
+    static readonly Color C_SKY = Color.FromArgb(255, 112, 198, 238);
+    static readonly Color C_FIRE = Color.FromArgb(255, 255, 128, 44);
+    static readonly Color C_VIOLET = Color.FromArgb(255, 202, 140, 255);
+    static readonly Color C_TRACK = Color.FromArgb(210, 0, 0, 0);
+    static readonly Color[] MODE_TINT = { C_TEXT, C_FIRE, C_RED, C_VIOLET };
 
-    // BareMinimum.UI.Draw / Kit / Glide constants, converted from screen
-    // height fractions into the 720 tall canvas the scaled draw calls use
+    // ---- layout, in canvas units --------------------------------------------
     const float CANVAS_H = 720f;
-    const float PANEL_ROUND = 0.013f * CANVAS_H;
-    const float PANEL_STRIPE = 0.0028f * CANVAS_H;
-    const float TITLE_TRACK = 0.0024f * CANVAS_H;
-    const float GLIDE_CHASE = 0.26f;
+    const float CARD_X = 22f;
+    const float CARD_Y = 54f;
+    const float CARD_W = 238f;
+    const float CARD_PAD = 12f;
+    const float ROW_H = 20f;
+    const float H_HEAD = 40f;
+    const float H_CLUB = 94f;
+    const float H_BALL = 44f;
+    const float H_STATS = 72f;
+    const float H_COPS = 28f;
+    const float H_DRAWER = 24f;
+    const float TITLE_TRACK = 1.7f;
     const int PULSE_MS = 1500;
     static readonly GTA.UI.Font FONT_LABEL = GTA.UI.Font.ChaletComprimeCologne;
-    static readonly GTA.UI.Font FONT_BODY = GTA.UI.Font.ChaletLondon;
+    static readonly GTA.UI.Font FONT_TITLE = GTA.UI.Font.Pricedown;
 
     int rectBudget;
+    int iconBudget;
     Dictionary<string, float> advCache = new Dictionary<string, float>();
+    Dictionary<string, GTA.UI.CustomSprite> iconCache = new Dictionary<string, GTA.UI.CustomSprite>();
+    bool iconsWarned;
 
-    // animation state
+    // animation state, all of it chased with frame time
     float hudArrive;        // 0 closed, 1 fully open
-    float powerShown;       // chases the real power, so the bar never snaps
+    float cardDim = 1f;     // the card steps back while the camera is on the ball
+    float watchK;           // the carry readout
+    float drawerK;          // the settings drawer
+    float menuRimRow;       // the selection rim, in rows, gliding onto the row it is on
+    float powerShown;       // chases the real power, so the meter never snaps
     float clubPop;          // brief swell when the club changes
     float strikePop;        // brief flare on contact
-    float footFade;         // the chip under the golfer
+    float footFade;         // the marker under the golfer
     float footX, footY;
     bool footHas;
+    float frameDt = 0.016f;
 
+    // ---- the feed ------------------------------------------------------------
+    class Feed
+    {
+        public string icon;
+        public string title;
+        public string sub;
+        public Color tint;
+        public int born;
+        public int life;
+    }
+    List<Feed> feed = new List<Feed>();
+    const int FEED_MAX = 3;
+    const int FEED_IN_MS = 170;
+    const int FEED_OUT_MS = 320;
+
+    void Toast(string icon, string title, string sub, Color tint, int ms)
+    {
+        if (sub == null) sub = "";
+        int now = Game.GameTime;
+        // the same line twice in quick succession just refreshes the first
+        for (int i = 0; i < feed.Count; i++)
+        {
+            if (feed[i].title == title && feed[i].sub == sub && now - feed[i].born < 400)
+            {
+                feed[i].born = now;
+                feed[i].life = ms;
+                return;
+            }
+        }
+        Feed f = new Feed();
+        f.icon = icon;
+        f.title = title;
+        f.sub = sub;
+        f.tint = tint;
+        f.born = now;
+        f.life = ms;
+        feed.Insert(0, f);
+        while (feed.Count > FEED_MAX) feed.RemoveAt(feed.Count - 1);
+    }
+
+    void ModeToast()
+    {
+        Toast(MODE_ICONS[(int)ballMode], ModeTitle(), ModeShort(), MODE_TINT[(int)ballMode], 2200);
+    }
+
+    // ---- small helpers -------------------------------------------------------
     float CanvasW()
     {
         try { return GTA.UI.Screen.ScaledWidth; }
@@ -247,11 +323,27 @@
         return t * t * (3f - 2f * t);
     }
 
+    static float Chase(float cur, float target, float dt, float rate)
+    {
+        return cur + (target - cur) * (1f - (float)Math.Exp(-dt * rate));
+    }
+
     static Color Fade(Color c, float k)
     {
         if (k <= 0f) return Color.FromArgb(0, c.R, c.G, c.B);
         if (k >= 1f) return c;
         return Color.FromArgb((int)(c.A * k), c.R, c.G, c.B);
+    }
+
+    static Color Blend(Color a, Color b, float t)
+    {
+        if (t <= 0f) return a;
+        if (t >= 1f) return b;
+        return Color.FromArgb(
+            (int)(a.A + (b.A - a.A) * t),
+            (int)(a.R + (b.R - a.R) * t),
+            (int)(a.G + (b.G - a.G) * t),
+            (int)(a.B + (b.B - a.B) * t));
     }
 
     void Bar(float left, float top, float w, float h, Color c)
@@ -262,21 +354,63 @@
         catch { }
     }
 
-    // Square. This used to build rounded corners out of a stack of sub pixel
-    // bands; GTA snapped each band to a different pixel from one frame to the
-    // next and every edge crawled. The radius and step arguments are kept so
-    // the call sites read the same, and ignored.
-    void RoundRect(float left, float top, float w, float h, float r, Color c, int steps)
+    void Rule(float x, float y, float w, float a)
     {
-        Bar(left, top, w, h, c);
+        Bar(x, y, w, 1f, Fade(C_LINE, a));
     }
 
-    void Panel(float left, float top, float w, float h, Color body, Color accent, float k)
+    // ---- icons ------------------------------------------------------------------
+    //  White PNGs, tinted on the way out. A missing file is looked for once,
+    //  remembered as missing, and simply not drawn: every icon sits next to
+    //  a word that says the same thing, so the HUD reads without them.
+    string IconPath(string name)
     {
-        RoundRect(left, top, w, h, PANEL_ROUND, Fade(body, k), 16);
-        Bar(left, top + PANEL_ROUND * 0.6f, PANEL_STRIPE, h - PANEL_ROUND * 1.2f, Fade(accent, k));
+        return Path.Combine(Path.Combine(Path.Combine(scriptsDir, "StreetGolf"), "icons"), name + ".png");
     }
 
+    GTA.UI.CustomSprite GetIcon(string name)
+    {
+        GTA.UI.CustomSprite s;
+        if (iconCache.TryGetValue(name, out s)) return s;
+        s = null;
+        try
+        {
+            string p = IconPath(name);
+            if (File.Exists(p))
+                s = new GTA.UI.CustomSprite(p, new SizeF(16f, 16f), new PointF(0f, 0f), Color.White, 0f, true);
+            else if (!iconsWarned)
+            {
+                iconsWarned = true;
+                Log("icons not found at " + p + " - the HUD will draw without them");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("icon " + name + " failed to load: " + ex.Message);
+            s = null;
+        }
+        iconCache[name] = s;
+        return s;
+    }
+
+    // cx, cy is the centre
+    void Icon(string name, float cx, float cy, float size, Color c)
+    {
+        if (iconBudget <= 0 || c.A <= 1 || size < 1f) return;
+        GTA.UI.CustomSprite s = GetIcon(name);
+        if (s == null) return;
+        iconBudget--;
+        try
+        {
+            s.Size = new SizeF(size, size);
+            s.Position = new PointF(cx, cy);
+            s.Color = c;
+            s.ScaledDraw();
+        }
+        catch { }
+    }
+
+    // ---- text -------------------------------------------------------------------
     void Txt(string t, float x, float y, float scale, Color c, GTA.UI.Alignment a, GTA.UI.Font f)
     {
         Txt(t, x, y, scale, c, a, f, false);
@@ -292,6 +426,39 @@
     void Txt(string t, float x, float y, float scale, Color c, GTA.UI.Alignment a)
     {
         Txt(t, x, y, scale, c, a, FONT_LABEL);
+    }
+
+    float TxtW(string t, float scale, GTA.UI.Font f)
+    {
+        if (string.IsNullOrEmpty(t)) return 0f;
+        try { return GTA.UI.TextElement.GetScaledStringWidth(t, f, scale); }
+        catch { return t.Length * scale * 24f; }
+    }
+
+    // Width of a line that has ~INPUT_...~ glyphs in it. The game swaps each
+    // token for a button picture about as wide as the line is tall, and the
+    // width call does not know that.
+    float GlyphW(string t, float scale)
+    {
+        int glyphs = 0;
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(t.Length);
+        int i = 0;
+        while (i < t.Length)
+        {
+            if (t[i] == '~')
+            {
+                int end = t.IndexOf('~', i + 1);
+                if (end > i)
+                {
+                    if (t.Substring(i + 1, end - i - 1).StartsWith("INPUT_")) glyphs++;
+                    i = end + 1;
+                    continue;
+                }
+            }
+            sb.Append(t[i]);
+            i++;
+        }
+        return TxtW(sb.ToString(), scale, FONT_LABEL) + glyphs * scale * 84f;
     }
 
     float Adv(char ch, float scale, GTA.UI.Font f)
@@ -312,7 +479,7 @@
         return w;
     }
 
-    // Letter spaced titles, the way their headers are set
+    // letter spaced, for the short titles on the marker
     void Tracked(string t, float x, float y, float scale, Color c, GTA.UI.Font f, float track, bool centre)
     {
         if (string.IsNullOrEmpty(t) || c.A <= 1) return;
@@ -332,19 +499,64 @@
         return (t / 60).ToString() + ":" + (t % 60).ToString("00");
     }
 
+    int Set() { return clubIndex / 4; }
+
+    string ModeTitle()
+    {
+        if (ballMode == BallMode.Super) return MODE_NAMES[(int)ballMode] + "  x" + ((int)superMult);
+        return MODE_NAMES[(int)ballMode];
+    }
+
+    string ModeShort()
+    {
+        if (ballMode == BallMode.Super) return MODE_SHORT[(int)ballMode] + " by " + ((int)superMult);
+        return MODE_SHORT[(int)ballMode];
+    }
+
+    // the carry shown for the club: the live prediction while lining up,
+    // otherwise the club's own full swing figure
+    string CarryText()
+    {
+        bool live = aimLine && hasPrediction && (mode == Mode.Ready || mode == Mode.Backswing);
+        return Dist(live ? predictedDist : ClubReach(clubIndex));
+    }
+
+    int WantedStars()
+    {
+        try { return Function.Call<int>(Hash.GET_PLAYER_WANTED_LEVEL, Game.Player.Handle); }
+        catch { return 0; }
+    }
+
+    bool DrawerWanted()
+    {
+        if (menuAutoHide <= 0f) return true;
+        return Game.GameTime - lastMenuMove < (int)(menuAutoHide * 1000f);
+    }
+
+    // ---- per frame animation --------------------------------------------------------
     void UpdateHudAnim(float dt)
     {
+        frameDt = dt;
         bool open = (mode != Mode.Off);
-        float want = open ? 1f : 0f;
-        hudArrive += (want - hudArrive) * (1f - (float)Math.Exp(-dt * 9f));
+        hudArrive = Chase(hudArrive, open ? 1f : 0f, dt, 9f);
         if (hudArrive < 0.002f) hudArrive = 0f;
         if (hudArrive > 0.998f) hudArrive = 1f;
 
+        cardDim = Chase(cardDim, mode == Mode.Watch ? 0.62f : 1f, dt, 6f);
+        watchK = Chase(watchK, mode == Mode.Watch ? 1f : 0f, dt, 8f);
+
         bool wantFoot = (mode == Mode.Ready || mode == Mode.Backswing || mode == Mode.Swing);
-        footFade += ((wantFoot ? 1f : 0f) - footFade) * (1f - (float)Math.Exp(-dt * 10f));
+        footFade = Chase(footFade, wantFoot ? 1f : 0f, dt, 10f);
 
         float pTarget = (mode == Mode.Backswing || mode == Mode.Swing) ? power : 0f;
-        powerShown += (pTarget - powerShown) * GLIDE_CHASE;
+        powerShown = Chase(powerShown, pTarget, dt, 26f);
+
+        drawerK = Chase(drawerK, DrawerWanted() ? 1f : 0f, dt, 11f);
+        if (drawerK < 0.002f) drawerK = 0f;
+        if (drawerK > 0.998f) drawerK = 1f;
+
+        menuRimRow = Chase(menuRimRow, menuIndex, dt, 18f);
+        if (Math.Abs(menuRimRow - menuIndex) < 0.02f) menuRimRow = menuIndex;   // land, do not hover
 
         if (clubPop > 0f) clubPop -= dt * 3.2f;
         if (clubPop < 0f) clubPop = 0f;
@@ -353,132 +565,386 @@
     }
 
     // =====================================================================
-    //  session panel, top left: the figures, then the settings list
+    //  everything on the screen edges
     // =====================================================================
     void DrawHud()
     {
         float k = Ease(hudArrive);
         if (k <= 0.01f) return;
-        rectBudget = 320;
+        rectBudget = 420;
+        iconBudget = 72;
 
-        const float rowH = 19f;
-        const float listTop = 84f;      // from the top of the panel
-        float left = 22f;
-        float w = 210f;
-        float top = 66f - (1f - k) * 14f;
-        float pad = 13f;
-        float vx = left + w - 26f;      // value column, clear of the panel edge
-        float h = listTop + MENU_COUNT * rowH + 9f;
-
-        Panel(left, top, w, h, P_BODY, P_BRAND, k);
-        Tracked("STREET GOLF", left + pad, top + 9f, 0.34f, Fade(P_BRAND, k), FONT_LABEL, TITLE_TRACK, false);
-        Bar(left + pad, top + 31f, w - pad * 2f, 1f, Fade(P_OFF, k * 0.4f));
-
-        Txt(shots + " BALLS    " + sessionCars + " CARS    " + sessionPeds + " PEDS",
-            left + pad, top + 36f, 0.225f, Fade(P_DIM, k), GTA.UI.Alignment.Left);
-        Txt("BEST " + Dist(bestShotDist), left + pad, top + 55f, 0.22f, Fade(P_CASH, k), GTA.UI.Alignment.Left);
-        DrawHeatTag(vx + 14f, top + 55f, k);
-        Bar(left + pad, top + 78f, w - pad * 2f, 1f, Fade(P_OFF, k * 0.4f));
-
-        // selection rim, gliding onto the row it is on
-        float selY = top + listTop + menuIndex * rowH;
-        if (menuRimY <= 0.1f) menuRimY = selY;
-        menuRimY += (selY - menuRimY) * GLIDE_CHASE;
-        if (Math.Abs(selY - menuRimY) < 0.4f) menuRimY = selY;   // land, do not hover
-        RoundRect(left + 5f, menuRimY - 2f, w - 10f, rowH,
-            4f, Fade(P_BRAND, k * (0.11f + 0.07f * Pulse())), 3);
-        Bar(left + 5f, menuRimY - 2f, 2f, rowH, Fade(P_BRAND, k * (0.55f + 0.45f * Pulse())));
-
-        for (int i = 0; i < MENU_COUNT; i++)
-        {
-            float ry = top + listTop + i * rowH;
-            bool sel = (i == menuIndex);
-            Txt(MenuLabel(i), left + pad, ry + 1f, 0.235f,
-                Fade(sel ? P_TEXT : P_DIM, k), GTA.UI.Alignment.Left);
-
-            string v = MenuValue(i);
-            float vw = TxtWidth(v, 0.245f);
-            Txt(v, vx - vw, ry, 0.245f, Fade(sel ? P_BRAND : P_DIM, k), GTA.UI.Alignment.Left);
-
-            if (sel)
-            {
-                float chev = 0.55f + 0.45f * Pulse();
-                Txt("<", vx - vw - 11f, ry, 0.245f, Fade(P_BRAND, k * chev), GTA.UI.Alignment.Left);
-                Txt(">", vx + 3f, ry, 0.245f, Fade(P_BRAND, k * chev), GTA.UI.Alignment.Left);
-            }
-        }
-
-        bool watching = (mode == Mode.Watch) || (liveDist > 1f && NewestShot() != null);
-        if (watching)
-        {
-            float cx = CanvasW() * 0.5f;
-            Tracked(Dist(liveDist), cx, 46f, 0.72f, Fade(P_BRAND, k), FONT_LABEL, TITLE_TRACK * 1.6f, true);
-            Tracked("CARRY", cx, 92f, 0.24f, Fade(P_DIM, k), FONT_LABEL, TITLE_TRACK * 2f, true);
-        }
-
+        DrawCard(k);
+        DrawCarry(k);
+        DrawFeed(k);
         DrawPrompts(k);
-
-        if (Game.GameTime < flashUntil && flashText.Length > 0)
-        {
-            float fk = k * (0.7f + 0.3f * Pulse());
-            Txt(flashText, CanvasW() * 0.5f, 552f, 0.38f, Fade(P_TEXT, fk),
-                GTA.UI.Alignment.Center, FONT_LABEL, true);
-        }
 
         if (debugHud)
             Txt("probes " + dbgProbes + "  hits " + dbgHits + "  impacts " + dbgImpacts +
-                "  last " + dbgLast + "  RT " + TriggerValue().ToString("0.00"),
-                22f, 30f, 0.22f, Fade(P_OFF, k), GTA.UI.Alignment.Left);
+                "  last " + dbgLast + "  RT " + TriggerValue().ToString("0.00") +
+                "  icons " + iconCache.Count,
+                CARD_X, 700f, 0.20f, Fade(C_DIMM, k), GTA.UI.Alignment.Left);
     }
 
-    float TxtWidth(string t, float scale)
+    // ---- the card -----------------------------------------------------------------
+    void DrawCard(float k)
     {
-        try { return GTA.UI.TextElement.GetScaledStringWidth(t, FONT_LABEL, scale); }
-        catch { return t.Length * 6f; }
+        float a = k * cardDim;
+        float x = CARD_X, w = CARD_W;
+        float y = CARD_Y - (1f - k) * 14f;
+        float ix = x + CARD_PAD;
+        float iw = w - CARD_PAD * 2f;
+        float dk = Ease(drawerK);
+        float listH = MENU_COUNT * ROW_H + 24f;
+        float h = H_HEAD + H_CLUB + H_BALL + H_STATS + H_COPS + H_DRAWER + listH * dk + 4f;
+
+        Bar(x, y, w, h, Fade(C_INK, a));
+        Bar(x, y + 2f, w, H_HEAD - 2f, Fade(C_INK2, a));
+        Bar(x, y, w, 2f, Fade(C_GREEN, a));
+
+        // header
+        Icon("ball", ix + 11f, y + 21f, 22f, Fade(C_TEXT, a));
+        Txt("STREET GOLF", ix + 30f, y + 5f, 0.36f, Fade(C_TEXT, a), GTA.UI.Alignment.Left, FONT_TITLE);
+        string ver = "v" + VERSION;
+        Txt(ver, ix + iw - TxtW(ver, 0.18f, FONT_LABEL), y + 14f, 0.18f, Fade(C_DIMM, a), GTA.UI.Alignment.Left);
+
+        float cy = y + H_HEAD;
+        Rule(x, cy, w, a);
+        cy = ClubBlock(ix, cy, iw, a);
+        Rule(x, cy, w, a);
+        cy = BallBlock(ix, cy, iw, a);
+        Rule(x, cy, w, a);
+        cy = StatsBlock(ix, cy, iw, a);
+        Rule(x, cy, w, a);
+        cy = CopsBlock(ix, cy, iw, a);
+        Rule(x, cy, w, a);
+        DrawerBlock(x, ix, cy, w, iw, a, dk);
     }
 
-    void DrawHeatTag(float rightX, float y, float k)
+    float ClubBlock(float ix, float y, float iw, float a)
+    {
+        float ty = y + 10f;
+        float tile = 46f;
+        float flare = clubPop > strikePop ? clubPop : strikePop;
+        Color ink = Blend(C_TEXT, C_AMBER, flare);
+
+        Bar(ix, ty, tile, tile, Fade(C_INK2, a));
+        Icon(CLUB_ICONS[Base()], ix + tile * 0.5f, ty + tile * 0.5f, 34f * (1f + clubPop * 0.15f), Fade(ink, a));
+
+        float tx = ix + tile + 10f;
+        Txt(CLUB_NAMES[clubIndex], tx, ty - 5f, 0.40f, Fade(ink, a), GTA.UI.Alignment.Left);
+        Txt(SET_TAGS[Set()], tx, ty + 21f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        float lw = TxtW("CARRY", 0.20f, FONT_LABEL);
+        Txt("CARRY", tx, ty + 35f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        Txt(CarryText(), tx + lw + 6f, ty + 33f, 0.25f, Fade(C_GREEN, a), GTA.UI.Alignment.Left);
+
+        // the rail: the four clubs, and which of the three sets is in hand
+        float ry = ty + tile + 10f;
+        for (int b = 0; b < 4; b++)
+        {
+            float sx = ix + 4f + b * 26f + 9f;
+            bool on = (b == Base());
+            Icon(CLUB_ICONS[b], sx, ry + 7f, 15f, Fade(on ? C_TEXT : C_DIMM, a));
+            for (int s = 0; s < 3; s++)
+            {
+                bool lit = on && s == Set();
+                Bar(sx - 6f + s * 5f, ry + 18f, 3f, 3f, Fade(lit ? C_AMBER : C_DIMM, a * (lit ? 1f : 0.55f)));
+            }
+        }
+        StatePill(ix + iw, ry + 2f, a);
+        return y + H_CLUB;
+    }
+
+    // what the golfer is doing right now, in the corner of the club block
+    void StatePill(float rightX, float y, float a)
     {
         string t;
         Color c;
-        if (!policeWanted) { t = "NO COPS"; c = P_COLD; }
-        else if (policeGrace > 0f && graceLeft > 0f)
+        bool live = false;
+        switch (mode)
         {
-            t = Clock(graceLeft);
-            c = graceLeft < 30f ? Fade(P_WARN, 0.6f + 0.4f * Pulse()) : P_COLD;
+            case Mode.Watch: t = "WATCHING"; c = C_SKY; live = true; break;
+            case Mode.Backswing: t = "BACKSWING"; c = C_AMBER; break;
+            case Mode.Swing: t = "SWING"; c = C_AMBER; break;
+            case Mode.Ready:
+                if (reloadTimer > 0f) { t = "TEEING UP"; c = C_MUTE; }
+                else { t = "READY"; c = C_GREEN; live = true; }
+                break;
+            default: t = "OFF"; c = C_DIMM; break;
         }
-        else if (unseenActive)
-        {
-            t = recentPedHits + "/" + heatAfterPeds;
-            c = recentPedHits >= heatAfterPeds - 1 ? P_WARN : P_COLD;
-        }
-        else if (lessLethalOn) { t = "BATONS"; c = Fade(P_WARN, 0.6f + 0.4f * Pulse()); }
-        else { t = "HEAT"; c = Fade(P_DANGER, 0.55f + 0.45f * Pulse()); }
-
-        Txt(t, rightX - TxtWidth(t, 0.22f), y, 0.22f, Fade(c, k), GTA.UI.Alignment.Left);
+        float tw = TxtW(t, 0.20f, FONT_LABEL);
+        float pw = tw + 24f, ph = 16f;
+        float px = rightX - pw;
+        Bar(px, y, pw, ph, Fade(c, a * 0.14f));
+        float dot = live ? 0.55f + 0.45f * Pulse() : 1f;
+        Bar(px + 7f, y + 6f, 4f, 4f, Fade(c, a * dot));
+        Txt(t, px + 16f, y - 1f, 0.20f, Fade(c, a), GTA.UI.Alignment.Left);
     }
 
+    float BallBlock(float ix, float y, float iw, float a)
+    {
+        float ty = y + 8f;
+        Color tint = MODE_TINT[(int)ballMode];
+        Bar(ix, ty, 28f, 28f, Fade(tint, a * 0.16f));
+        float glow = ballMode == BallMode.Normal ? 1f : 0.8f + 0.2f * Pulse();
+        Icon(MODE_ICONS[(int)ballMode], ix + 14f, ty + 14f, 20f, Fade(tint, a * glow));
+
+        float tx = ix + 38f;
+        float lw = TxtW("BALL", 0.20f, FONT_LABEL);
+        Txt("BALL", tx, ty - 1f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        Txt(ModeTitle(), tx + lw + 7f, ty - 3f, 0.27f, Fade(tint, a), GTA.UI.Alignment.Left);
+        Txt(ModeShort(), tx, ty + 14f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        return y + H_BALL;
+    }
+
+    float StatsBlock(float ix, float y, float iw, float a)
+    {
+        float ty = y + 8f;
+        float gap = 6f;
+        float tw = (iw - gap * 2f) / 3f;
+        StatTile(ix, ty, tw, "ball", shots.ToString(), "BALLS", a);
+        StatTile(ix + tw + gap, ty, tw, "car", sessionCars.ToString(), "CARS", a);
+        StatTile(ix + (tw + gap) * 2f, ty, tw, "ped", sessionPeds.ToString(), "PEDS", a);
+
+        float ry = ty + 46f;
+        Icon("trophy", ix + 8f, ry + 8f, 15f, Fade(C_AMBER, a));
+        float lw = TxtW("BEST", 0.20f, FONT_LABEL);
+        Txt("BEST", ix + 20f, ry, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        Txt(Dist(bestShotDist), ix + 20f + lw + 6f, ry - 2f, 0.25f, Fade(C_GREEN, a), GTA.UI.Alignment.Left);
+
+        string last = Dist(lastShotDist);
+        float vw = TxtW(last, 0.25f, FONT_LABEL);
+        float l2 = TxtW("LAST", 0.20f, FONT_LABEL);
+        Txt(last, ix + iw - vw, ry - 2f, 0.25f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
+        Txt("LAST", ix + iw - vw - 6f - l2, ry, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        return y + H_STATS;
+    }
+
+    void StatTile(float x, float y, float w, string icon, string n, string label, float a)
+    {
+        Bar(x, y, w, 40f, Fade(C_INK2, a));
+        Icon(icon, x + 12f, y + 20f, 15f, Fade(C_MUTE, a));
+        Txt(n, x + 24f, y + 1f, 0.33f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
+        Txt(label, x + 24f, y + 24f, 0.17f, Fade(C_DIMM, a), GTA.UI.Alignment.Left);
+    }
+
+    void CopStatus(out string t, out Color c, out bool hot)
+    {
+        hot = false;
+        if (!policeWanted) { t = "OFF"; c = C_SKY; return; }
+        if (policeGrace > 0f && graceLeft > 0f)
+        {
+            t = "GRACE " + Clock(graceLeft);
+            hot = graceLeft < 30f;
+            c = hot ? C_AMBER : C_SKY;
+            return;
+        }
+        if (unseenActive)
+        {
+            if (stealthWhenUnseen && lastUnwitnessed) { t = "NO WITNESS"; c = C_GREEN; return; }
+            t = recentPedHits + " / " + heatAfterPeds + " HITS";
+            hot = recentPedHits >= heatAfterPeds - 1;
+            c = hot ? C_AMBER : C_GREEN;
+            return;
+        }
+        if (lessLethalOn) { t = "BATONS OUT"; c = C_AMBER; hot = true; return; }
+        t = "HEAT";
+        c = C_RED;
+        hot = true;
+    }
+
+    float CopsBlock(float ix, float y, float iw, float a)
+    {
+        string t;
+        Color c;
+        bool hot;
+        CopStatus(out t, out c, out hot);
+        int stars = WantedStars();
+
+        string ic = stars > 0 ? "badge" : (t == "NO WITNESS" ? "eye" : "badge");
+        Icon(ic, ix + 9f, y + 14f, 18f, Fade(stars > 0 ? C_RED : c, a));
+        Txt("POLICE", ix + 24f, y + 4f, 0.24f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
+        if (stars > 0)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                bool lit = i < stars;
+                float glow = lit ? 0.7f + 0.3f * Pulse() : 0.45f;
+                Icon("star5", ix + iw - 8f - (4 - i) * 16f, y + 14f, 14f, Fade(lit ? C_RED : C_DIMM, a * glow));
+            }
+        }
+        else
+        {
+            float tw = TxtW(t, 0.23f, FONT_LABEL);
+            float glow = hot ? 0.65f + 0.35f * Pulse() : 1f;
+            Txt(t, ix + iw - tw, y + 4f, 0.23f, Fade(c, a * glow), GTA.UI.Alignment.Left);
+        }
+        return y + H_COPS;
+    }
+
+    void DrawerBlock(float x, float ix, float y, float w, float iw, float a, float dk)
+    {
+        Icon("dpad", ix + 8f, y + 12f, 15f, Fade(C_TEXT, a));
+        Txt("SETTINGS", ix + 22f, y + 3f, 0.24f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
+
+        // while it is shut, say what opens it
+        if (dk < 0.98f)
+        {
+            string hint = UsingPad() ? "D-PAD" : "ARROW KEYS";
+            float hk = a * (1f - dk) * (0.6f + 0.4f * Pulse());
+            float hw = TxtW(hint, 0.20f, FONT_LABEL);
+            Txt(hint, ix + iw - 18f - hw, y + 4f, 0.20f, Fade(C_AMBER, hk), GTA.UI.Alignment.Left);
+            Icon("arrow_ud", ix + iw - 8f, y + 12f, 13f, Fade(C_AMBER, hk));
+        }
+        if (dk <= 0.02f) return;
+
+        float la = a * dk;
+        float listTop = y + H_DRAWER;
+        float extent = (MENU_COUNT * ROW_H + 24f) * dk;   // rows past the drawer's edge are not drawn
+
+        float rimY = listTop + menuRimRow * ROW_H;
+        if (rimY + ROW_H <= listTop + extent + 0.5f)
+        {
+            Bar(x + 4f, rimY, w - 8f, ROW_H, Fade(C_AMBER, la * (0.10f + 0.05f * Pulse())));
+            Bar(x + 4f, rimY, 2f, ROW_H, Fade(C_AMBER, la));
+        }
+
+        float vr = ix + iw - 14f;      // values end here, clear of the right chevron
+        for (int i = 0; i < MENU_COUNT; i++)
+        {
+            float ry = listTop + i * ROW_H;
+            if (ry + ROW_H > listTop + extent + 0.5f) break;
+            bool sel = (i == menuIndex);
+
+            Icon(MenuIcon(i), ix + 8f, ry + ROW_H * 0.5f, 13f, Fade(sel ? C_TEXT : C_DIMM, la));
+            Txt(MenuLabel(i), ix + 22f, ry + 1f, 0.235f, Fade(sel ? C_TEXT : C_MUTE, la), GTA.UI.Alignment.Left);
+
+            float vw;
+            if (MenuIsToggle(i))
+            {
+                vw = 24f;
+                Switch(vr - vw, ry + 5f, MenuBool(i), la);
+            }
+            else
+            {
+                string v = MenuValue(i);
+                vw = TxtW(v, 0.235f, FONT_LABEL);
+                Txt(v, vr - vw, ry + 1f, 0.235f, Fade(sel ? C_AMBER : C_MUTE, la), GTA.UI.Alignment.Left);
+            }
+            if (sel)
+            {
+                float ck = la * (0.5f + 0.5f * Pulse());
+                Icon("arrow_l", vr - vw - 9f, ry + ROW_H * 0.5f, 10f, Fade(C_AMBER, ck));
+                Icon("arrow_r", vr + 7f, ry + ROW_H * 0.5f, 10f, Fade(C_AMBER, ck));
+            }
+        }
+
+        // one line on what the selected row does
+        float hy = listTop + MENU_COUNT * ROW_H + 3f;
+        if (hy + 18f <= listTop + extent + 1f)
+            Txt(MenuHint(menuIndex), ix + 8f, hy, 0.20f, Fade(C_MUTE, la), GTA.UI.Alignment.Left);
+    }
+
+    // an on/off switch built from two squares
+    void Switch(float x, float y, bool on, float a)
+    {
+        float w = 24f, h = 10f;
+        Bar(x, y, w, h, Fade(on ? C_GREEN : C_DIMM, a * (on ? 0.5f : 0.35f)));
+        float kx = on ? x + w - 9f : x + 1f;
+        Bar(kx, y + 1f, 8f, h - 2f, Fade(on ? C_TEXT : C_MUTE, a));
+    }
+
+    // ---- the carry, top centre, while the camera is on the ball -----------------------------
+    void DrawCarry(float k)
+    {
+        float wk = Ease(watchK) * k;
+        if (wk <= 0.01f) return;
+        float cx = CanvasW() * 0.5f;
+        float y = 34f + (1f - wk) * 10f;
+
+        string n = DistNum(liveDist);
+        string u = DistUnit();
+        float nw = TxtW(n, 0.78f, FONT_TITLE);
+        float uw = TxtW(u, 0.30f, FONT_LABEL);
+        float total = nw + 8f + uw;
+        Txt(n, cx - total * 0.5f, y, 0.78f, Fade(C_TEXT, wk), GTA.UI.Alignment.Left, FONT_TITLE);
+        Txt(u, cx - total * 0.5f + nw + 8f, y + 30f, 0.30f, Fade(C_MUTE, wk), GTA.UI.Alignment.Left);
+        Tracked("CARRY", cx, y + 68f, 0.22f, Fade(C_MUTE, wk), FONT_LABEL, TITLE_TRACK * 2f, true);
+
+        if (airControl)
+        {
+            float bw = 110f, bx = cx - bw * 0.5f, by = y + 92f;
+            Icon("curve", bx - 12f, by + 2f, 14f, Fade(C_SKY, wk));
+            Bar(bx, by, bw, 4f, Fade(C_TRACK, wk));
+            float sf = steerFrac < 0f ? 0f : (steerFrac > 1f ? 1f : steerFrac);
+            Bar(bx, by, bw * sf, 4f, Fade(C_SKY, wk));
+            Tracked("AFTERTOUCH", cx, by + 8f, 0.18f, Fade(C_DIMM, wk), FONT_LABEL, TITLE_TRACK * 1.5f, true);
+        }
+    }
+
+    // ---- the feed, right hand side ------------------------------------------------------
+    void DrawFeed(float k)
+    {
+        int now = Game.GameTime;
+        for (int i = feed.Count - 1; i >= 0; i--)
+            if (now - feed[i].born > feed[i].life + FEED_OUT_MS) feed.RemoveAt(i);
+        if (feed.Count == 0) return;
+
+        float fw = 252f, fh = 44f;
+        float fx = CanvasW() - 22f - fw;
+        float fy = 236f;
+        for (int i = 0; i < feed.Count; i++)
+        {
+            Feed f = feed[i];
+            int age = now - f.born;
+            float kin = Ease(age / (float)FEED_IN_MS);
+            float kout = age > f.life ? 1f - Ease((age - f.life) / (float)FEED_OUT_MS) : 1f;
+            float a = k * kin * kout;
+            if (a <= 0.01f) continue;
+            float x = fx + (1f - kin) * 28f;
+            float y = fy + i * (fh + 6f);
+
+            Bar(x, y, fw, fh, Fade(C_INK, a));
+            Bar(x, y, 3f, fh, Fade(f.tint, a));
+            Bar(x + 3f, y, fh, fh, Fade(f.tint, a * 0.16f));
+            Icon(f.icon, x + 3f + fh * 0.5f, y + fh * 0.5f, 24f, Fade(f.tint, a));
+            float tx = x + fh + 12f;
+            if (f.sub.Length > 0)
+            {
+                Txt(f.title, tx, y + 3f, 0.30f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
+                Txt(f.sub, tx, y + 23f, 0.21f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+            }
+            else Txt(f.title, tx, y + 9f, 0.32f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
+        }
+    }
+
+    // ---- button prompts along the bottom -------------------------------------------------
+    //  The ~INPUT_...~ tokens are replaced by the game with a picture of the
+    //  button, for whichever device was touched last.
     void DrawPrompts(float k)
     {
         bool pad = UsingPad();
+        string swingBtn = pad ? "~INPUT_ATTACK~" : "~INPUT_JUMP~";
         string hint;
         if (mode == Mode.Watch)
-            hint = airControl
-                ? (pad ? "L STICK   steer      A   next ball" : "W A S D   steer      SPACE   next ball")
-                : (pad ? "A   next ball" : "SPACE   next ball");
-        else if (mode == Mode.Backswing) hint = pad ? "release RT to hit" : "release SPACE to hit";
-        else if (reloadTimer > 0f) hint = "teeing up";
-        else hint = pad
-            ? "RT  swing     LB RB  club     D-PAD  settings     B  quit"
-            : "SPACE  swing     Q E  club     ARROWS  settings     BACKSPACE  quit";
-        float cx2 = CanvasW() * 0.5f;
-        float hw = TrackedWidth(hint, 0.25f, FONT_LABEL, TITLE_TRACK);
-        RoundRect(cx2 - hw * 0.5f - 12f, 676f, hw + 24f, 22f, 8f, Fade(P_BODY, k * 0.85f), 4);
-        Tracked(hint, cx2, 680f, 0.25f, Fade(P_TEXT, k * 0.92f), FONT_LABEL, TITLE_TRACK, true);
+            hint = (airControl ? (pad ? "~INPUT_MOVE_LR~ STEER      " : "W A S D  STEER      ") : "")
+                 + "~INPUT_JUMP~ NEXT BALL";
+        else if (mode == Mode.Backswing)
+            hint = "RELEASE " + swingBtn + " TO HIT";
+        else
+            hint = swingBtn + " SWING      "
+                 + "~INPUT_FRONTEND_LB~ ~INPUT_FRONTEND_RB~ CLUB      "
+                 + "~INPUT_FRONTEND_UP~ ~INPUT_FRONTEND_DOWN~ SETTINGS      "
+                 + "~INPUT_FRONTEND_CANCEL~ QUIT";
+
+        float cx = CanvasW() * 0.5f;
+        float tw = GlyphW(hint, 0.26f);
+        Bar(cx - tw * 0.5f - 14f, 673f, tw + 28f, 26f, Fade(C_INK, k * 0.8f));
+        Txt(hint, cx, 675f, 0.26f, Fade(C_TEXT, k * 0.92f), GTA.UI.Alignment.Center, FONT_LABEL);
     }
 
     // =====================================================================
-    //  the golf chip, under the golfer's feet
+    //  the tee marker, under the golfer's feet
     // =====================================================================
     void DrawFootHud()
     {
@@ -497,77 +963,79 @@
         if (!footHas) { footX = sx; footY = sy; footHas = true; }
         else
         {
-            footX += (sx - footX) * 0.35f;
-            footY += (sy - footY) * 0.35f;
+            float c = 1f - (float)Math.Exp(-frameDt * 26f);
+            footX += (sx - footX) * c;
+            footY += (sy - footY) * c;
         }
         sx = (float)Math.Round(footX);
         sy = (float)Math.Round(footY);
 
         rectBudget = 200;
+        iconBudget = 16;
 
-        float pop = clubPop * 0.06f + strikePop * 0.05f;
-        float w = 150f * (1f + pop);
-        float h = 54f * (1f + pop);
+        float pop = clubPop * 0.05f + strikePop * 0.04f;
+        float w = 176f * (1f + pop);
+        float h = 58f * (1f + pop);
         float left = sx - w * 0.5f;
-        float top = sy + 16f + (1f - k) * 12f;     // rises up into place
+        float top = sy + 18f + (1f - k) * 12f;     // rises up into place
 
-        Panel(left, top, w, h, P_BODY, P_BRAND, k * 0.94f);
+        Bar(left, top, w, h, Fade(C_INK, k * 0.92f));
+        Bar(left, top, w, 2f, Fade(C_GREEN, k));
+        // a bright line races out along the top edge when the club connects
+        if (strikePop > 0f)
+        {
+            float sw = w * (1f - strikePop);
+            Bar(left + (w - sw) * 0.5f, top, sw, 2f, Fade(C_TEXT, k * strikePop));
+        }
 
-        // club, letter spaced, with a warm flare just after a change or a strike
-        Color clubInk = P_TEXT;
-        float flare = clubPop > 0f ? clubPop : strikePop;
-        if (flare > 0f) clubInk = Blend(P_TEXT, P_BRAND, flare);
-        Tracked(CLUB_NAMES[clubIndex], left + w * 0.5f, top + 6f, 0.30f,
-            Fade(clubInk, k), FONT_LABEL, TITLE_TRACK, true);
+        float flare = clubPop > strikePop ? clubPop : strikePop;
+        Color ink = Blend(C_TEXT, C_AMBER, flare);
+        Icon(CLUB_ICONS[Base()], left + 18f, top + 20f, 22f * (1f + clubPop * 0.2f), Fade(ink, k));
 
-        string reach = hasPrediction ? Dist(predictedDist) : Dist(ClubReach(clubIndex));
-        Tracked(reach, left + w * 0.5f, top + 26f, 0.22f, Fade(P_BRAND, k * 0.9f), FONT_LABEL, TITLE_TRACK, true);
+        float cx = left + w * 0.5f + 9f;
+        Tracked(CLUB_NAMES[clubIndex], cx, top + 6f, 0.30f, Fade(ink, k), FONT_LABEL, TITLE_TRACK, true);
+        Tracked(CarryText(), cx, top + 25f, 0.22f, Fade(C_GREEN, k * 0.95f), FONT_LABEL, TITLE_TRACK, true);
 
-        // tags above the chip: the ball mode, and whether the law is switched off
-        float tagY = top - 17f;
         if (ballMode != BallMode.Normal)
+            Icon(MODE_ICONS[(int)ballMode], left + w - 15f, top + 15f, 14f,
+                Fade(MODE_TINT[(int)ballMode], k * (0.75f + 0.25f * Pulse())));
+
+        if (reloadTimer > 0f && mode == Mode.Ready)
         {
-            float mk = k * (0.72f + 0.28f * Pulse());
-            string mt = ballMode == BallMode.Super
-                ? MODE_NAMES[(int)ballMode] + "  x" + ((int)superMult)
-                : MODE_NAMES[(int)ballMode];
-            Tracked(mt, left + w * 0.5f, tagY, 0.24f,
-                Fade(P_WARN, mk), FONT_LABEL, TITLE_TRACK * 1.4f, true);
-            tagY -= 15f;
+            Icon("tee", left + w * 0.5f - 34f, top - 9f, 12f, Fade(C_MUTE, k));
+            Tracked("TEEING UP", left + w * 0.5f + 6f, top - 17f, 0.20f, Fade(C_MUTE, k), FONT_LABEL, TITLE_TRACK, true);
         }
-        if (!policeWanted)
-            Tracked("NO COPS", left + w * 0.5f, tagY, 0.21f,
-                Fade(P_COLD, k * 0.85f), FONT_LABEL, TITLE_TRACK * 1.4f, true);
 
-        // meter: power while swinging, remaining after-touch while watching
-        float mx = left + 12f, mw = w - 24f, my = top + h - 13f, mh = 5f;
-        RoundRect(mx, my, mw, mh, mh * 0.5f, Fade(P_TRACK, k), 3);
-
-        float sweetX = mx + mw * sweetLo;
-        float sweetW = mw * (sweetHi - sweetLo);
-        bool swinging = (mode == Mode.Backswing || mode == Mode.Swing);
-        Bar(sweetX, my - 1.5f, sweetW, mh + 3f,
-            Fade(P_WARN, k * (swinging ? 0.30f + 0.30f * Pulse() : 0.12f)));
-
-        float shown = powerShown < 0f ? 0f : (powerShown > 1f ? 1f : powerShown);
-        if (shown > 0.002f)
-        {
-            bool sweet = shown >= sweetLo && shown <= sweetHi;
-            Color fill = sweet ? P_CASH : Blend(P_BRAND, P_DEEP, shown);
-            RoundRect(mx, my, mw * shown, mh, mh * 0.5f, Fade(fill, k), 3);
-            Bar(mx + mw * shown - 1f, my - 3f, 2f, mh + 6f, Fade(P_TEXT, k));
-        }
+        Meter(left + 12f, top + h - 14f, w - 24f, 6f, k);
     }
 
-    static Color Blend(Color a, Color b, float t)
+    // sixteen cells: amber on the way up, green inside the sweet spot, red
+    // once you have gone past it
+    void Meter(float mx, float my, float mw, float mh, float k)
     {
-        if (t <= 0f) return a;
-        if (t >= 1f) return b;
-        return Color.FromArgb(
-            (int)(a.A + (b.A - a.A) * t),
-            (int)(a.R + (b.R - a.R) * t),
-            (int)(a.G + (b.G - a.G) * t),
-            (int)(a.B + (b.B - a.B) * t));
+        const int cells = 16;
+        float gap = 2f;
+        float cw = (mw - gap * (cells - 1)) / cells;
+        bool swinging = (mode == Mode.Backswing || mode == Mode.Swing);
+        float shown = powerShown < 0f ? 0f : (powerShown > 1f ? 1f : powerShown);
+        bool sweet = shown >= sweetLo && shown <= sweetHi;
+
+        for (int c = 0; c < cells; c++)
+        {
+            float f0 = c / (float)cells;
+            float f1 = (c + 1) / (float)cells;
+            bool zone = f1 > sweetLo && f0 < sweetHi;
+            float cx = mx + c * (cw + gap);
+            Color bg = zone ? Fade(C_AMBER, swinging ? 0.30f + 0.15f * Pulse() : 0.18f) : C_TRACK;
+            Bar(cx, my, cw, mh, Fade(bg, k));
+            if (shown > f0 + 0.001f)
+            {
+                float fill = shown >= f1 ? 1f : (shown - f0) / (f1 - f0);
+                Color col = sweet ? C_GREEN : (f0 >= sweetHi ? C_RED : C_AMBER);
+                Bar(cx, my, cw * fill, mh, Fade(col, k));
+            }
+        }
+        if (shown > 0.002f) Bar(mx + mw * shown - 1f, my - 3f, 2f, mh + 6f, Fade(C_TEXT, k));
     }
 
     bool WorldToCanvas(Vector3 world, out float cx, out float cy)
@@ -595,7 +1063,7 @@
         if (!debugHud || Game.GameTime > offHintUntil) return;
         rectBudget = 40;
         Txt("Street Golf did not start: " + (blockReason.Length > 0 ? blockReason : "unknown"),
-            22f, 30f, 0.22f, P_OFF, GTA.UI.Alignment.Left);
+            CARD_X, 30f, 0.22f, C_DIMM, GTA.UI.Alignment.Left);
     }
 
     float ClubReach(int c)
@@ -604,12 +1072,6 @@
         float v = clubSpeed[c];
         if (ballMode == BallMode.Super) v *= superMult;
         return (float)(v * v * Math.Sin(2.0 * loft) / 9.8);
-    }
-
-    void Flash(string s, int ms)
-    {
-        flashText = s;
-        flashUntil = Game.GameTime + ms;
     }
 
     // =====================================================================
@@ -784,8 +1246,18 @@
 
     string Dist(float metres)
     {
-        if (UseImperial()) return ((int)Math.Round(metres * 1.09361f)).ToString() + " yd";
-        return ((int)Math.Round(metres)).ToString() + " m";
+        return DistNum(metres) + " " + DistUnit().ToLowerInvariant();
+    }
+
+    string DistNum(float metres)
+    {
+        if (UseImperial()) return ((int)Math.Round(metres * 1.09361f)).ToString();
+        return ((int)Math.Round(metres)).ToString();
+    }
+
+    string DistUnit()
+    {
+        return UseImperial() ? "YD" : "M";
     }
 
     void Notify(string s)

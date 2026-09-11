@@ -1,4 +1,4 @@
-    // =====================================================================
+﻿    // =====================================================================
     //  club prop - attached to the hand bone exactly as the minigame does
     // =====================================================================
     void AttachClub(Ped ped, int index)
@@ -95,7 +95,7 @@
         SpawnTeeBall(ped);
         AnchorStance(ped, true);
         reloadTimer = 0f;
-        Flash("new ball", 900);
+        Toast("tee", "NEW BALL", "", C_MUTE, 900);
     }
 
     Vector3 TeeSpot(Ped ped)
@@ -262,7 +262,7 @@
             bestShotDist = s.dist;
             if (shots > 1)
             {
-                Flash("~g~LONGEST DRIVE  " + Dist(s.dist), 2500);
+                Toast("trophy", "LONGEST DRIVE", Dist(s.dist), C_GREEN, 2600);
                 Function.Call(Hash.PLAY_SOUND_FRONTEND, -1, "GOLF_NEW_RECORD", "HUD_AWARDS", true);
             }
             SaveRecords();
@@ -468,7 +468,7 @@
                 catch { }
                 Jolt(p, 1.1f);
                 Rumble(340, 250);
-                Flash("~o~BOOM", 1600);
+                Toast("bomb", "BOOM", "", C_RED, 1600);
                 try { if (s.ball != null && s.ball.Exists()) s.ball.Delete(); }
                 catch { }
                 s.ball = null;
@@ -530,7 +530,7 @@
         PlaySoundOn("GOLF_BALL_IMPACT_CONCRETE_MASTER", s.ball);
         Jolt(p, 0.35f + 0.5f * pw);
         Rumble(180, (int)(90 + 120 * pw));
-        Flash(pw > 0.6f ? "~r~FORE!~s~  clean headshot" : "~r~FORE!~s~  pedestrian down", 2000);
+        Toast("ped", "FORE!", pw > 0.6f ? "clean headshot" : "pedestrian down", C_RED, 2000);
         SaveRecords();
     }
 
@@ -652,7 +652,7 @@
         Rumble(260, (int)(140 + 115 * pw));
         string nm = "car";
         try { nm = v.LocalizedName; } catch { }
-        Flash(pw > 0.7f ? "~y~SMASH!~s~  " + nm : "~y~DINGER!~s~  " + nm, 2000);
+        Toast("car", pw > 0.7f ? "SMASH!" : "DINGER!", nm, C_AMBER, 2000);
         SaveRecords();
     }
 

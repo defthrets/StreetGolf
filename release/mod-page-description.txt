@@ -23,7 +23,7 @@ Tee up on a street, a rooftop, the freeway or the beach. Line one up, swing, and
 
 🏌️ Twelve clubs. The standard four, a flatter set that runs out along a street instead of arcing over it, and a third set swung much harder.
 
-📊 Full stats. Live carry distance, balls hit, cars hit, pedestrians hit, and a longest drive that persists between sessions.
+📊 A proper HUD. A range card with the club, the ball, the police and your session figures, a tee marker under the golfer with the power meter, a feed for every smash and FORE!, and a settings drawer you open with the D-pad. Custom icons throughout, and the game's own button glyphs for the prompts.
 
 
 💣 BALL MODES
@@ -45,7 +45,7 @@ All of it can be switched off with one setting, or one key, if you would rather 
 
 1. Install Script Hook V — http://www.dev-c.com/gtav/scripthookv/
 2. Install ScriptHookVDotNet v3 — https://github.com/scripthookvdotnet/scripthookvdotnet/releases
-3. Drop StreetGolf.cs and StreetGolf.ini into your GTA V scripts folder.
+3. Unpack the zip and merge its scripts folder into your GTA V scripts folder. You get StreetGolf.cs, StreetGolf.ini and a StreetGolf folder with the HUD icons.
 4. Start the game and press F3. ⛳
 
 ⚠️ If you have both GTA V Legacy and Enhanced installed, they are separate folders with separate scripts folders. Install into the one you actually launch.
@@ -59,7 +59,7 @@ Swing — hold SPACE or LMB / hold RT, release to hit
 Change club — Q and E, or the mouse wheel / LB and RB
 Next ball, stop watching — SPACE / A
 Steer the ball — W A S D / left stick
-Settings list — arrow keys / D-pad
+Settings drawer — arrow keys / D-pad
 Ball mode — M
 Police on and off — K
 Fresh ball — N
@@ -68,7 +68,7 @@ Quit — BACKSPACE / B
 
 ⚙️ SETTINGS
 
-Ten settings are on the in-game list, reachable with the D-pad or the arrow keys while you play: ball mode, police, batons, impact power, dents, marks, trail, aim line, after-touch and units. Everything else lives in StreetGolf.ini — club speeds and lofts, trail thickness, the sweet spot, police timings and more.
+Ten settings are in the drawer on the HUD card, reachable with the D-pad or the arrow keys while you play: ball mode, police, batons, impact power, car damage, wall marks, trail, aim line, after-touch and units. Everything else lives in StreetGolf.ini — club speeds and lofts, trail thickness, the sweet spot, police timings and more.
 
 
 ✅ REQUIREMENTS

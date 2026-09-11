@@ -1,4 +1,4 @@
-# Street Golf 1.0.0
+# Street Golf 1.1.0
 
 A driving range anywhere in Los Santos. You stand where you are and hit ball
 after ball at the traffic. No hole, no course, no walking after the ball.
@@ -11,15 +11,19 @@ the game's physics, and the game's golf sound set and particles.
 
 ## Install
 
-Copy both files into your GTA V `scripts` folder:
+Unpack the zip and merge its `scripts` folder into your GTA V `scripts` folder.
+You end up with:
 
 ```
-StreetGolf.cs
-StreetGolf.ini
+scripts/StreetGolf.cs
+scripts/StreetGolf.ini
+scripts/StreetGolf/icons/*.png
 ```
 
 ScriptHookVDotNet compiles the `.cs` when the game starts. Press `Insert` in
-game to reload scripts without restarting.
+game to reload scripts without restarting. The icons folder holds the HUD's
+pictures; without it the HUD still works, it just has words where the pictures
+would be.
 
 **Requirements**
 
@@ -43,20 +47,55 @@ with separate `scripts` directories. Install into the one you actually launch.
 | Swing | hold `RT`, release to hit | hold `Space` or `LMB`, release |
 | Stop watching, next ball | `A` | `Space` |
 | Steer the ball in flight | left stick | `W` `A` `S` `D` |
-| Settings list | `D-pad` | arrow keys |
+| Settings drawer | `D-pad` | arrow keys |
 | Ball mode | — | `M` |
 | Police on / off | — | `K` |
 | Fresh ball | — | `N` or `R` |
 | Quit | `B` | `Backspace` |
 
-You aim by looking. Point the camera at whatever you want to hit and swing.
+You aim by looking. Point the camera at whatever you want to hit and swing. The
+strip along the bottom of the screen shows the buttons for whichever device you
+touched last.
+
+---
+
+## The HUD
+
+**The card**, top left, is the range card for the session:
+
+- the club in hand, its carry, and a rail of the twelve clubs showing which of
+  the four you are holding and which of the three sets it belongs to
+- the ball mode, and what it does in a line
+- balls hit, cars hit, pedestrians hit, your best drive and your last one
+- the police: off, the grace clock, whether anyone can see you, how many people
+  you have dropped, or your stars
+- a **settings drawer** that slides open when you touch the `D-pad` or the
+  arrow keys and closes again a few seconds after you stop. Up and down pick a
+  row, left and right change it. Switches are drawn as switches; a line under
+  the list says what the selected row does. `MenuAutoHide` in the ini sets how
+  long it stays open, and `0` keeps it open all the time.
+
+**The tee marker** sits under the golfer's feet: the club, the carry, and the
+power meter, right where you are looking when you swing. The meter runs amber
+up to the sweet spot, green inside it and red past it, and the marker flares
+when the club connects.
+
+**The feed**, on the right, is where the shots land: a smash, a FORE!, a
+longest drive, a boom, each with its own picture.
+
+**The carry** sits top centre while the camera is on the ball, with a small bar
+under it showing how much after-touch that shot has left.
+
+The whole thing is sized off screen height, so it does not stretch on an
+ultrawide, and every panel is a plain square on purpose: rounded corners drawn
+from stacked bands crawl between frames in this engine.
 
 ---
 
 ## Playing
 
 Hold the swing button and the power meter fills, then falls back, so you can
-time it. Release inside the pale band near the top for a clean strike and a
+time it. Release inside the green band near the top for a clean strike and a
 small distance bonus. Outside it the ball hooks or slices.
 
 After the strike the camera follows the ball and **keeps following it**, even
@@ -138,17 +177,18 @@ back, so being caught means a beating or a stun rather than being shot off the
 tee. Draw an actual firearm and it lifts at once: they answer whatever you are
 holding. Their guns are never taken away, only holstered, so they are their
 normal selves the moment it stops applying. `LessLethalCops` and
-`LessLethalMaxStars` control it, and `BATONS` is on the in-game list.
+`LessLethalMaxStars` control it, and `BATONS` is on the in-game drawer.
 
 ---
 
 ## Settings
 
-Everything lives in `StreetGolf.ini`. The ten you reach for most are on the
-in-game list, under `D-pad` or the arrow keys: ball mode, police, batons,
-impact power, dents, marks, trail, aim line, after-touch and units.
+Everything lives in `StreetGolf.ini`. The ten you reach for most are in the
+settings drawer on the card, under the `D-pad` or the arrow keys: ball mode,
+police, batons, impact power, car damage, wall marks, trail, aim line,
+after-touch and units.
 
-Changes made on that list last for the session. The ini holds what it starts as.
+Changes made in the drawer last for the session. The ini holds what it starts as.
 
 Records are kept in `StreetGolf.records.txt` beside the script.
 
@@ -163,7 +203,6 @@ unless something needs chasing down.
 - If you are wasted, busted, tased or pulled into a cutscene, Street Golf packs
   itself up and hands the golfer back to the game rather than leaving him locked
   in his stance.
-- The HUD is sized off screen height, so it will not stretch on an ultrawide.
 
 Credit to Rockstar for the golf assets. This only lets you use them in the street.
 
@@ -175,11 +214,16 @@ Credit to Rockstar for the golf assets. This only lets you use them in the stree
 the parts in `src/`. Edit those, not the single file.
 
 ```
-./tools/get-apiref.sh    # once: fetch the SHVDN reference assemblies
-./build.sh               # assemble src/ and compile-check every version
-./build.sh --install     # ...and copy into the game scripts folder
+./tools/get-apiref.sh          # once: fetch the SHVDN reference assemblies
+./build.sh                     # assemble src/ and compile-check every version
+./build.sh --install           # ...and copy into the game scripts folder
+./build.sh --zip               # ...and build release/StreetGolf-<version>.zip
+python tools/make_icons.py     # redraw StreetGolf/icons (needs Pillow)
 ```
 
 The build fails if the script stops compiling against SHVDN 3.6, the 3.7
 nightlies or 3.9 Enhanced, which is how cross-version support is kept honest.
 The reference assemblies are third party binaries and are not committed.
+
+The icons are drawn by `tools/make_icons.py` as white silhouettes and tinted
+by the script at draw time, so a new icon is a few lines of Python and a name.
