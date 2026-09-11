@@ -193,6 +193,18 @@
         Vector3 pos = s.ball.Position;
         Vector3 vel = s.ball.Velocity;
         float speed = vel.Length();
+        float life = ballLifetime * (s.mode == BallMode.Super ? 3f : 1f);
+
+        // The world is streamed around the player, not the ball. Past a few
+        // hundred metres there is no collision loaded where the ball is, and
+        // it drops straight through the ground. Asking for collision at the
+        // ball keeps a floor under it without moving the streaming focus
+        // away from the golfer.
+        if (newest || s == watchedShot)
+        {
+            try { Function.Call(Hash.REQUEST_COLLISION_AT_COORD, pos.X, pos.Y, pos.Z); }
+            catch { }
+        }
 
         float d = s.origin.DistanceTo2D(pos);
         if (d > s.dist) s.dist = d;
@@ -237,13 +249,13 @@
             try { hag = s.ball.HeightAboveGround; }
             catch { }
             if (speed < 0.2f && hag < 0.6f) s.rest += dt; else s.rest = 0f;
-            if (s.rest > 0.7f || s.age > ballLifetime || pos.Z < -80f) FinishShot(s);
+            if (s.rest > 0.7f || s.age > life || pos.Z < -80f) FinishShot(s);
         }
 
         s.prevPos = pos;
 
         if (s.ball != null && s != watchedShot
-            && ((s.done && s.age > ballLifetime) || s.age > ballLifetime + 12f))
+            && ((s.done && s.age > life) || s.age > life + 12f))
         {
             try { s.ball.Delete(); }
             catch { }
@@ -430,6 +442,8 @@
         catch { }
     }
 
+    float hitBoost = 1f;
+
     void Apply(Shot s, Entity e, Vector3 p, Vector3 normal, MaterialHash mat,
                Vector3 vel, float speed, int now, Ped me)
     {
@@ -441,6 +455,9 @@
         if (pw > 1.4f) pw = 1.4f;
         pw *= impactPower;
         bool heavy = speed >= minImpactSpeed;
+        // a super shot hits as hard as it flies: the shove and the damage
+        // grow with the square root of the multiplier, same as its pace
+        hitBoost = s.mult > 1f ? (float)Math.Sqrt(s.mult) : 1f;
 
         if (!ModeImpact(s, e, p, normal, vel, speed, now, me)) return;
 
@@ -513,12 +530,13 @@
             Function.Call(Hash.SET_PED_CAN_RAGDOLL, victim.Handle, true);
             int dur = (int)(1400 + 2600f * pw);
             Function.Call(Hash.SET_PED_TO_RAGDOLL, victim.Handle, dur, dur + 1500, 0, false, false, false);
-            victim.ApplyDamage((int)(5f + 45f * pw));
+            victim.ApplyDamage((int)((5f + 45f * pw) * hitBoost));
             if (pw > 0.35f)
                 Function.Call(Hash.APPLY_PED_DAMAGE_PACK, victim.Handle, "BigHitByVehicle", 0f, 1f);
 
             Vector3 dir = vel.Length() > 0.01f ? vel.Normalized : Vector3.WorldNorth;
-            Vector3 push = dir * (3f + 14f * pw) + new Vector3(0f, 0f, 1.5f + 3f * pw);
+            float lift = hitBoost > 3f ? 3f : hitBoost;
+            Vector3 push = dir * (3f + 14f * pw) * hitBoost + new Vector3(0f, 0f, (1.5f + 3f * pw) * lift);
             Function.Call(Hash.APPLY_FORCE_TO_ENTITY, victim.Handle, 1,
                 push.X, push.Y, push.Z, 0f, 0f, 0f, 0, false, true, true, false, true);
         }
@@ -594,16 +612,22 @@
                 // value actually works varies by build - the wrong one silently
                 // does nothing at all - so both are sent, then a wider, softer
                 // pass so the metal around the crater pulls in with it.
-                float dmg = 900f + 3200f * pw;
+                float dmgBoost = hitBoost > 3f ? 3f : hitBoost;
+                float dmg = (900f + 3200f * pw) * dmgBoost;
                 float tight = 0.30f + 0.35f * pw;
                 Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg, tight, true);
                 Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg, tight, false);
                 Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg * 0.5f, 1.0f + 1.1f * pw, false);
 
                 float bh = Function.Call<float>(Hash.GET_VEHICLE_BODY_HEALTH, v.Handle);
-                float nh = bh - (60f + 220f * pw);
+                float nh = bh - (60f + 220f * pw) * hitBoost;
                 if (nh < 60f) nh = 60f;
                 Function.Call(Hash.SET_VEHICLE_BODY_HEALTH, v.Handle, nh);
+
+                // a super shot counts as a full strike whatever the meter said
+                float pwx = pw * hitBoost;
+                if (pwx > 1.4f) pwx = 1.4f;
+                pw = pwx;
 
                 // straight through the bonnet hurts the engine
                 if (loc.Y > 1.0f && loc.Z < 0.45f && pw > 0.4f)
@@ -635,7 +659,7 @@
             dir.Z = 0f;
             if (dir.Length() < 0.01f) dir = Vector3.WorldNorth;
             dir = dir.Normalized;
-            float imp = (2f + 9f * pw) * carKnockback;
+            float imp = (2f + 9f * pw) * carKnockback * hitBoost;
             Vector3 push = dir * imp;
             Vector3 arm = loc * 0.35f;
             Function.Call(Hash.APPLY_FORCE_TO_ENTITY, v.Handle, 1,
@@ -667,7 +691,7 @@
             try
             {
                 Vector3 dir = vel.Length() > 0.01f ? vel.Normalized : Vector3.WorldNorth;
-                Vector3 push = dir * (3f + 12f * pw);
+                Vector3 push = dir * (3f + 12f * pw) * hitBoost;
                 Function.Call(Hash.APPLY_FORCE_TO_ENTITY, obj.Handle, 1,
                     push.X, push.Y, push.Z + 0.5f, 0f, 0f, 0f, 0, false, true, true, false, true);
             }
@@ -809,10 +833,16 @@
             camDir = Vector3.Lerp(camDir, nd, 1f - (float)Math.Exp(-dt * 3.5f));
             if (camDir.Length() > 0.001f) camDir = camDir.Normalized;
         }
-        Vector3 want = ballPos - camDir * 6.5f + new Vector3(0f, 0f, 2.6f);
+        // further back and much quicker on its feet when the ball is really
+        // moving, or a super shot leaves the camera looking at empty road
+        float speed = vel.Length();
+        float back = 6.5f + (speed > 60f ? (speed - 60f) * 0.03f : 0f);
+        if (back > 22f) back = 22f;
+        float rate = speed > 80f ? 40f : 6f;
+        Vector3 want = ballPos - camDir * back + new Vector3(0f, 0f, 2.6f + (back - 6.5f) * 0.25f);
         float gz;
         if (TryGround(new Vector3(want.X, want.Y, want.Z + 2f), out gz) && gz > want.Z - 0.8f) want.Z = gz + 0.8f;
-        camPos = Vector3.Lerp(camPos, want, 1f - (float)Math.Exp(-dt * 6f));
+        camPos = Vector3.Lerp(camPos, want, 1f - (float)Math.Exp(-dt * rate));
         cam.Position = camPos;
         cam.PointAt(ballPos + new Vector3(0f, 0f, 0.2f));
     }

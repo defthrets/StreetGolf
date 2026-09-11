@@ -56,7 +56,7 @@ Contact is found properly. A ball at sixty metres a second crosses a wall betwee
 <li> <b>Normal.</b> A golf ball.</li>
 <li> <b>Fireball.</b> Sets light to whatever it touches and leaves fires burning where it bounced.</li>
 <li> <b>Boom.</b> Flies exactly like a normal ball, then detonates where it lands. Not before.</li>
-<li> <b>Super Shot.</b> Every club multiplied. Fifty times, by default. It is not subtle.</li>
+<li> <b>Super Shot.</b> Carries fifty times as far, by default, and hits like it. The multiplier is a row in the drawer, from twice to two hundred times. It is not subtle.</li>
 </ul>
 
 One press in the settings drawer, or <b>M</b>.
@@ -69,10 +69,10 @@ One press in the settings drawer, or <b>M</b>.
 <li> <b>A tee marker</b> under his feet with the power meter, right where you are looking when you swing. Amber on the way up, green in the sweet spot, red past it, and it flares when the club connects.</li>
 <li> <b>A feed</b> on the right for what the ball just did — SMASH!, FORE!, LONGEST DRIVE, BOOM — each with its own picture.</li>
 <li> <b>The carry</b> top centre while the camera is on the ball, in the game's own big font.</li>
-<li> <b>A settings drawer</b> in the card that slides open when you touch the D-pad and closes a few seconds after you stop. Ten settings, switches drawn as switches, and a line under the list saying what the selected one does.</li>
+<li> <b>A settings drawer</b> in the card that slides open when you touch the D-pad and closes a few seconds after you stop. Eleven settings, switches drawn as switches, and a line under the list saying what the selected one does.</li>
 </ul>
 
-Thirty icons drawn for it, and the button prompts along the bottom use the game's own button pictures, so they show the right buttons for a pad or a keyboard without being told. It is sized off screen height, so it does not stretch on an ultrawide.
+Thirty icons drawn for it, and the button prompts, bottom right, are the game's own strip, so they show the right buttons for a pad or a keyboard without being told. It is sized off screen height, so it does not stretch on an ultrawide.
 
 
 <b>THE POLICE</b>
@@ -91,7 +91,7 @@ Any stars you had when you started are left alone: this stops the mod <i>creatin
 
 <b>YOURS TO CHANGE</b>
 
-Ten settings in the drawer while you play: ball, police, batons, impact power, car damage, wall marks, trail, aim line, after-touch and units. The other sixty-odd are in StreetGolf.ini with a line each: every club's speed and loft, the sweet spot, how the trail looks, the police timings, the after-touch allowances, how hard a car gets shoved. Your best drive and your totals persist between sessions in a text file beside it.
+Eleven settings in the drawer while you play: ball, super shot, police, batons, impact power, car damage, wall marks, trail, aim line, after-touch and units. The other sixty-odd are in StreetGolf.ini with a line each: every club's speed and loft, the sweet spot, how the trail looks, the police timings, the after-touch allowances, how hard a car gets shoved. Your best drive and your totals persist between sessions in a text file beside it.
 
 
 <b>INSTALL</b>
@@ -116,17 +116,26 @@ It is source, not a DLL: ScriptHookVDotNet compiles StreetGolf.cs when the game 
 
 The F-key and the letters can be changed in the ini.
 
-<b>On a controller:</b> hold <b>LT</b> and press <b>A</b> to start. <b>RT</b> swings, <b>LB</b> and <b>RB</b> change club, the left stick fine-aims and then steers the ball, <b>A</b> stops watching and tees the next one, the <b>D-pad</b> works the drawer and <b>B</b> quits. The prompts along the bottom switch to the pad's buttons the moment you pick it up.
+<b>On a controller:</b> hold <b>LT</b> and press <b>A</b> to start. <b>RT</b> swings, <b>LB</b> and <b>RB</b> change club, the left stick fine-aims and then steers the ball, <b>A</b> stops watching and tees the next one, the <b>D-pad</b> works the drawer and <b>B</b> quits. The prompts, bottom right, switch to the pad's buttons the moment you pick it up.
 
 
 --------------------------------------------------------------------------------
   CHANGELOG
 --------------------------------------------------------------------------------
 
+<b>1.1.1</b>
+
+<ul>
+<li> <b>Super Shot works.</b> Fifty times the speed was three and a half kilometres a second: the ball crossed the loaded world in two frames and the game binned it, so nothing happened. The multiplier is now on the carry, the speed cap comes off before the ball is struck rather than after, and collision is kept loaded under a long shot so it lands on the ground instead of falling through it. It hits as hard as it flies.</li>
+<li> <b>The multiplier is a row in the drawer</b>, from twice to two hundred times.</li>
+<li> <b>The button prompts are the game's own strip</b>, bottom right, with real button pictures. The line along the bottom that printed glyph names like b_2000 is gone.</li>
+<li> The tee marker no longer drops off the bottom of the screen, and the ball camera keeps up with a fast ball.</li>
+</ul>
+
 <b>1.1.0</b>
 
 <ul>
-<li> <b>A new HUD, top to bottom.</b> A range card with the club, the ball, the police and the session; a tee marker under the golfer with the power meter; a feed on the right for every smash and FORE!; the carry top centre while the camera is on the ball; and a settings drawer that slides open on the D-pad. Thirty icons drawn for it, and button prompts that use the game's own button pictures.</li>
+<li> <b>A new HUD, top to bottom.</b> A range card with the club, the ball, the police and the session; a tee marker under the golfer with the power meter; a feed on the right for every smash and FORE!; the carry top centre while the camera is on the ball; and a settings drawer that slides open on the D-pad. Thirty icons drawn for it.</li>
 <li> <b>The after-touch allowance is on screen</b> for the first time, as a bar under the carry.</li>
 <li> <b>Shot results are toasts, not notifications.</b> The centre flash text and most of the game's own notification feed are gone; what the ball did lands in the feed with a picture.</li>
 <li> <b>Animation runs off frame time</b> rather than per frame, so it moves the same at 30 and at 144.</li>

@@ -1,5 +1,5 @@
 ﻿// =====================================================================
-//  STREET GOLF  1.1.0  -  by spitmux
+//  STREET GOLF  1.1.1  -  by spitmux
 //
 //  A driving range anywhere in Los Santos. You stand where you are and
 //  hit ball after ball at the traffic. No hole, no course, no walking
@@ -34,7 +34,7 @@ using Control = GTA.Control;
 public class StreetGolf : Script
 {
     // ---------------- game assets ----------------
-    const string VERSION = "1.1.0";
+    const string VERSION = "1.1.1";
     const string AUTHOR = "spitmux";
 
     const string BALL_MODEL = "prop_golf_ball";
@@ -85,7 +85,7 @@ public class StreetGolf : Script
         "a plain golf ball",
         "lights up whatever it touches",
         "detonates where it lands",
-        "every club multiplied" };
+        "carries" };
 
     // ---------------- settings ----------------
     Keys keyToggle = Keys.F3;
@@ -93,7 +93,9 @@ public class StreetGolf : Script
     Keys keyBallMode = Keys.M;
     Keys keyPolice = Keys.K;
     BallMode ballMode = BallMode.Normal;
-    float superMult = 50f;        // what SUPER SHOT multiplies every club by
+    float superMult = 50f;        // how many times further a SUPER SHOT carries
+    // the stops the drawer steps through; the ini can hold anything in between
+    static readonly float[] SUPER_STEPS = { 2f, 3f, 5f, 8f, 10f, 15f, 20f, 30f, 50f, 75f, 100f, 150f, 200f };
     Control padToggleHold = Control.FrontendLt;
     Control padTogglePress = Control.FrontendAccept;  // the d-pad belongs to the menu now
     int unitMode;                    // 0 auto (game setting), 1 yards, 2 metres
@@ -178,7 +180,7 @@ public class StreetGolf : Script
     bool announced;
     int menuIndex;
     int lastMenuMove;
-    const int MENU_COUNT = 10;
+    const int MENU_COUNT = 11;
     int dbgProbes, dbgHits, dbgImpacts;
     string dbgLast = "-";
     string blockReason = "";
@@ -217,6 +219,7 @@ public class StreetGolf : Script
         public float steerUsed;
         public float rollSteerUsed;
         public BallMode mode;
+        public float mult = 1f;     // the super shot multiplier this ball left the tee with
         public bool spent;          // one shot effects already used
         public int homeTarget;
         public int homeAt;
@@ -615,6 +618,7 @@ public class StreetGolf : Script
     void OnAborted(object sender, EventArgs e)
     {
         try { Shutdown(); } catch { }
+        ReleasePrompts();
     }
 
     void OnTick(object sender, EventArgs e)
@@ -1366,8 +1370,12 @@ public class StreetGolf : Script
         Function.Call(Hash.ACTIVATE_PHYSICS, b.Handle);
         Function.Call(Hash.SET_OBJECT_PHYSICS_PARAMS, b.Handle, -1f, -1f, 0f, 0f, 0.01f, -1f, -1f, -1f, -1f, -1f, -1f);
         Function.Call(Hash.APPLY_FORCE_TO_ENTITY, b.Handle, 1, 0.001f, 0.001f, 0f, 0f, 0f, 0f, 0, false, false, true, false, true);
-        b.Velocity = vel;
+        // The cap comes off BEFORE the velocity goes on. The other way round
+        // the velocity was clamped to the old cap as it was set, and lifting
+        // the cap afterwards did nothing, which is why a super shot flew like
+        // an ordinary one.
         Function.Call(Hash.SET_ENTITY_MAX_SPEED, b.Handle, ModeTopSpeed());
+        b.Velocity = vel;
         b.SetNoCollision(ped, true);
 
         Shot s = new Shot();
@@ -1376,6 +1384,7 @@ public class StreetGolf : Script
         s.born = Game.GameTime;
         s.prevVz = vel.Z;
         s.mode = ballMode;
+        s.mult = ballMode == BallMode.Super ? superMult : 1f;
         s.prevPos = origin;
         s.lastPt = origin;
         s.pts.Add(origin);
@@ -1391,56 +1400,93 @@ public class StreetGolf : Script
         if (sweet) Toast("swing", "SWEET SPOT", "dead straight, and a little extra", C_GREEN, 1400);
     }
 
+    // The multiplier is on the CARRY, not on the pace. Range goes with the
+    // square of launch speed, so fifty times the distance is seven times the
+    // speed, which the engine can still fly and the camera can still follow.
+    // Fifty times the SPEED was three and a half kilometres a second: the
+    // ball crossed the loaded world inside two frames and the game binned
+    // it, which looked like nothing happening at all.
+    float SuperSpeedFactor()
+    {
+        float f = (float)Math.Sqrt(superMult);
+        if (f < 1f) f = 1f;
+        if (f > 9.5f) f = 9.5f;
+        return f;
+    }
+
     Vector3 ShapeLaunch(Vector3 vel, Vector3 dir, float speed)
     {
-        if (ballMode == BallMode.Super) return vel * superMult;
+        if (ballMode == BallMode.Super) return vel * SuperSpeedFactor();
         return vel;
     }
 
     float ModeTopSpeed()
     {
-        // the ceiling has to come off entirely or the multiplier is thrown away
-        if (ballMode == BallMode.Super) return 150f * superMult;
+        if (ballMode == BallMode.Super) return 150f * SuperSpeedFactor() + 50f;
         return 150f;
     }
 
     // =====================================================================
-    //  the settings list in the left panel
+    //  the settings drawer on the card
+    //    0 BALL   1 SUPER SHOT   2 POLICE   3 BATONS   4 IMPACT
+    //    5 CAR DAMAGE   6 WALL MARKS   7 TRAIL   8 AIM LINE
+    //    9 AFTERTOUCH   10 UNITS
     // =====================================================================
     string MenuLabel(int i)
     {
         switch (i)
         {
             case 0: return "BALL";
-            case 1: return "POLICE";
-            case 2: return "BATONS";
-            case 3: return "IMPACT";
-            case 4: return "CAR DAMAGE";
-            case 5: return "WALL MARKS";
-            case 6: return "TRAIL";
-            case 7: return "AIM LINE";
-            case 8: return "AFTERTOUCH";
-            case 9: return "UNITS";
+            case 1: return "SUPER SHOT";
+            case 2: return "POLICE";
+            case 3: return "BATONS";
+            case 4: return "IMPACT";
+            case 5: return "CAR DAMAGE";
+            case 6: return "WALL MARKS";
+            case 7: return "TRAIL";
+            case 8: return "AIM LINE";
+            case 9: return "AFTERTOUCH";
+            case 10: return "UNITS";
         }
         return "";
     }
 
     static string OnOff(bool v) { return v ? "ON" : "OFF"; }
 
+    string MenuValue(int i)
+    {
+        switch (i)
+        {
+            case 0: return MODE_NAMES[(int)ballMode];
+            case 1: return "x" + ((int)superMult);
+            case 2: return OnOff(policeWanted);
+            case 3: return OnOff(lessLethalCops);
+            case 4: return "x" + impactPower.ToString("0.00");
+            case 5: return OnOff(carDamage);
+            case 6: return OnOff(impactMarks);
+            case 7: return OnOff(trailEnabled);
+            case 8: return OnOff(aimLine);
+            case 9: return OnOff(airControl);
+            case 10: return unitMode == 1 ? "YARDS" : (unitMode == 2 ? "METRES" : "AUTO");
+        }
+        return "";
+    }
+
     string MenuIcon(int i)
     {
         switch (i)
         {
             case 0: return MODE_ICONS[(int)ballMode];
-            case 1: return "badge";
-            case 2: return "baton";
-            case 3: return "impact";
-            case 4: return "dent";
-            case 5: return "crack";
-            case 6: return "trail";
-            case 7: return "aim";
-            case 8: return "curve";
-            case 9: return "ruler";
+            case 1: return "super";
+            case 2: return "badge";
+            case 3: return "baton";
+            case 4: return "impact";
+            case 5: return "dent";
+            case 6: return "crack";
+            case 7: return "trail";
+            case 8: return "aim";
+            case 9: return "curve";
+            case 10: return "ruler";
         }
         return "ball";
     }
@@ -1451,15 +1497,16 @@ public class StreetGolf : Script
         switch (i)
         {
             case 0: return "plain, on fire, explosive, or just absurd";
-            case 1: return "the master switch for police interest";
-            case 2: return "low stars bring sticks and tasers";
-            case 3: return "how hard the ball hits everything";
-            case 4: return "dents, glass and tyres where it lands";
-            case 5: return "chips and cracks in whatever it strikes";
-            case 6: return "the ribbon the ball leaves behind";
-            case 7: return "the arc and the ring where it lands";
-            case 8: return "lean on the ball in flight with the stick";
-            case 9: return "yards, metres, or the game's own setting";
+            case 1: return "how many times further a super shot carries";
+            case 2: return "the master switch for police interest";
+            case 3: return "low stars bring sticks and tasers";
+            case 4: return "how hard the ball hits everything";
+            case 5: return "dents, glass and tyres where it lands";
+            case 6: return "chips and cracks in whatever it strikes";
+            case 7: return "the ribbon the ball leaves behind";
+            case 8: return "the arc and the ring where it lands";
+            case 9: return "lean on the ball in flight with the stick";
+            case 10: return "yards, metres, or the game's own setting";
         }
         return "";
     }
@@ -1467,46 +1514,42 @@ public class StreetGolf : Script
     // rows that are a switch are drawn as one, the rest show their value
     static bool MenuIsToggle(int i)
     {
-        return i == 1 || i == 2 || i == 4 || i == 5 || i == 6 || i == 7 || i == 8;
+        return i == 2 || i == 3 || i == 5 || i == 6 || i == 7 || i == 8 || i == 9;
     }
 
     bool MenuBool(int i)
     {
         switch (i)
         {
-            case 1: return policeWanted;
-            case 2: return lessLethalCops;
-            case 4: return carDamage;
-            case 5: return impactMarks;
-            case 6: return trailEnabled;
-            case 7: return aimLine;
-            case 8: return airControl;
+            case 2: return policeWanted;
+            case 3: return lessLethalCops;
+            case 5: return carDamage;
+            case 6: return impactMarks;
+            case 7: return trailEnabled;
+            case 8: return aimLine;
+            case 9: return airControl;
         }
         return false;
+    }
+
+    // the next stop up or down from wherever the multiplier is now
+    static float StepSuper(float cur, int dir)
+    {
+        if (dir > 0)
+        {
+            for (int i = 0; i < SUPER_STEPS.Length; i++)
+                if (SUPER_STEPS[i] > cur + 0.01f) return SUPER_STEPS[i];
+            return SUPER_STEPS[SUPER_STEPS.Length - 1];
+        }
+        for (int i = SUPER_STEPS.Length - 1; i >= 0; i--)
+            if (SUPER_STEPS[i] < cur - 0.01f) return SUPER_STEPS[i];
+        return SUPER_STEPS[0];
     }
 
     void PoliceToast()
     {
         if (policeWanted) Toast("badge", "POLICE ON", "they can take an interest again", C_AMBER, 2200);
         else Toast("badge", "POLICE OFF", "nobody is coming, swing away", C_SKY, 2200);
-    }
-
-    string MenuValue(int i)
-    {
-        switch (i)
-        {
-            case 0: return MODE_NAMES[(int)ballMode];
-            case 1: return OnOff(policeWanted);
-            case 2: return OnOff(lessLethalCops);
-            case 3: return "x" + impactPower.ToString("0.00");
-            case 4: return OnOff(carDamage);
-            case 5: return OnOff(impactMarks);
-            case 6: return OnOff(trailEnabled);
-            case 7: return OnOff(aimLine);
-            case 8: return OnOff(airControl);
-            case 9: return unitMode == 1 ? "YARDS" : (unitMode == 2 ? "METRES" : "AUTO");
-        }
-        return "";
     }
 
     void MenuAdjust(int i, int dir)
@@ -1519,25 +1562,29 @@ public class StreetGolf : Script
                 ModeToast();
                 break;
             case 1:
+                superMult = StepSuper(superMult, dir);
+                if (ballMode == BallMode.Super) clubPop = 1f;
+                break;
+            case 2:
                 policeWanted = !policeWanted;
                 if (policeWanted) noticedNotified = false;
                 else RestorePolice();
                 break;
-            case 2:
+            case 3:
                 lessLethalCops = !lessLethalCops;
                 if (!lessLethalCops) ReleaseCops();
                 break;
-            case 3:
+            case 4:
                 impactPower += 0.25f * dir;
                 if (impactPower < 0f) impactPower = 0f;
                 if (impactPower > 3f) impactPower = 3f;
                 break;
-            case 4: carDamage = !carDamage; break;
-            case 5: impactMarks = !impactMarks; break;
-            case 6: trailEnabled = !trailEnabled; break;
-            case 7: aimLine = !aimLine; break;
-            case 8: airControl = !airControl; break;
-            case 9: unitMode = (unitMode + dir + 3) % 3; break;
+            case 5: carDamage = !carDamage; break;
+            case 6: impactMarks = !impactMarks; break;
+            case 7: trailEnabled = !trailEnabled; break;
+            case 8: aimLine = !aimLine; break;
+            case 9: airControl = !airControl; break;
+            case 10: unitMode = (unitMode + dir + 3) % 3; break;
         }
     }
 
@@ -1892,6 +1939,18 @@ public class StreetGolf : Script
         Vector3 pos = s.ball.Position;
         Vector3 vel = s.ball.Velocity;
         float speed = vel.Length();
+        float life = ballLifetime * (s.mode == BallMode.Super ? 3f : 1f);
+
+        // The world is streamed around the player, not the ball. Past a few
+        // hundred metres there is no collision loaded where the ball is, and
+        // it drops straight through the ground. Asking for collision at the
+        // ball keeps a floor under it without moving the streaming focus
+        // away from the golfer.
+        if (newest || s == watchedShot)
+        {
+            try { Function.Call(Hash.REQUEST_COLLISION_AT_COORD, pos.X, pos.Y, pos.Z); }
+            catch { }
+        }
 
         float d = s.origin.DistanceTo2D(pos);
         if (d > s.dist) s.dist = d;
@@ -1936,13 +1995,13 @@ public class StreetGolf : Script
             try { hag = s.ball.HeightAboveGround; }
             catch { }
             if (speed < 0.2f && hag < 0.6f) s.rest += dt; else s.rest = 0f;
-            if (s.rest > 0.7f || s.age > ballLifetime || pos.Z < -80f) FinishShot(s);
+            if (s.rest > 0.7f || s.age > life || pos.Z < -80f) FinishShot(s);
         }
 
         s.prevPos = pos;
 
         if (s.ball != null && s != watchedShot
-            && ((s.done && s.age > ballLifetime) || s.age > ballLifetime + 12f))
+            && ((s.done && s.age > life) || s.age > life + 12f))
         {
             try { s.ball.Delete(); }
             catch { }
@@ -2129,6 +2188,8 @@ public class StreetGolf : Script
         catch { }
     }
 
+    float hitBoost = 1f;
+
     void Apply(Shot s, Entity e, Vector3 p, Vector3 normal, MaterialHash mat,
                Vector3 vel, float speed, int now, Ped me)
     {
@@ -2140,6 +2201,9 @@ public class StreetGolf : Script
         if (pw > 1.4f) pw = 1.4f;
         pw *= impactPower;
         bool heavy = speed >= minImpactSpeed;
+        // a super shot hits as hard as it flies: the shove and the damage
+        // grow with the square root of the multiplier, same as its pace
+        hitBoost = s.mult > 1f ? (float)Math.Sqrt(s.mult) : 1f;
 
         if (!ModeImpact(s, e, p, normal, vel, speed, now, me)) return;
 
@@ -2212,12 +2276,13 @@ public class StreetGolf : Script
             Function.Call(Hash.SET_PED_CAN_RAGDOLL, victim.Handle, true);
             int dur = (int)(1400 + 2600f * pw);
             Function.Call(Hash.SET_PED_TO_RAGDOLL, victim.Handle, dur, dur + 1500, 0, false, false, false);
-            victim.ApplyDamage((int)(5f + 45f * pw));
+            victim.ApplyDamage((int)((5f + 45f * pw) * hitBoost));
             if (pw > 0.35f)
                 Function.Call(Hash.APPLY_PED_DAMAGE_PACK, victim.Handle, "BigHitByVehicle", 0f, 1f);
 
             Vector3 dir = vel.Length() > 0.01f ? vel.Normalized : Vector3.WorldNorth;
-            Vector3 push = dir * (3f + 14f * pw) + new Vector3(0f, 0f, 1.5f + 3f * pw);
+            float lift = hitBoost > 3f ? 3f : hitBoost;
+            Vector3 push = dir * (3f + 14f * pw) * hitBoost + new Vector3(0f, 0f, (1.5f + 3f * pw) * lift);
             Function.Call(Hash.APPLY_FORCE_TO_ENTITY, victim.Handle, 1,
                 push.X, push.Y, push.Z, 0f, 0f, 0f, 0, false, true, true, false, true);
         }
@@ -2293,16 +2358,22 @@ public class StreetGolf : Script
                 // value actually works varies by build - the wrong one silently
                 // does nothing at all - so both are sent, then a wider, softer
                 // pass so the metal around the crater pulls in with it.
-                float dmg = 900f + 3200f * pw;
+                float dmgBoost = hitBoost > 3f ? 3f : hitBoost;
+                float dmg = (900f + 3200f * pw) * dmgBoost;
                 float tight = 0.30f + 0.35f * pw;
                 Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg, tight, true);
                 Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg, tight, false);
                 Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg * 0.5f, 1.0f + 1.1f * pw, false);
 
                 float bh = Function.Call<float>(Hash.GET_VEHICLE_BODY_HEALTH, v.Handle);
-                float nh = bh - (60f + 220f * pw);
+                float nh = bh - (60f + 220f * pw) * hitBoost;
                 if (nh < 60f) nh = 60f;
                 Function.Call(Hash.SET_VEHICLE_BODY_HEALTH, v.Handle, nh);
+
+                // a super shot counts as a full strike whatever the meter said
+                float pwx = pw * hitBoost;
+                if (pwx > 1.4f) pwx = 1.4f;
+                pw = pwx;
 
                 // straight through the bonnet hurts the engine
                 if (loc.Y > 1.0f && loc.Z < 0.45f && pw > 0.4f)
@@ -2334,7 +2405,7 @@ public class StreetGolf : Script
             dir.Z = 0f;
             if (dir.Length() < 0.01f) dir = Vector3.WorldNorth;
             dir = dir.Normalized;
-            float imp = (2f + 9f * pw) * carKnockback;
+            float imp = (2f + 9f * pw) * carKnockback * hitBoost;
             Vector3 push = dir * imp;
             Vector3 arm = loc * 0.35f;
             Function.Call(Hash.APPLY_FORCE_TO_ENTITY, v.Handle, 1,
@@ -2366,7 +2437,7 @@ public class StreetGolf : Script
             try
             {
                 Vector3 dir = vel.Length() > 0.01f ? vel.Normalized : Vector3.WorldNorth;
-                Vector3 push = dir * (3f + 12f * pw);
+                Vector3 push = dir * (3f + 12f * pw) * hitBoost;
                 Function.Call(Hash.APPLY_FORCE_TO_ENTITY, obj.Handle, 1,
                     push.X, push.Y, push.Z + 0.5f, 0f, 0f, 0f, 0, false, true, true, false, true);
             }
@@ -2508,10 +2579,16 @@ public class StreetGolf : Script
             camDir = Vector3.Lerp(camDir, nd, 1f - (float)Math.Exp(-dt * 3.5f));
             if (camDir.Length() > 0.001f) camDir = camDir.Normalized;
         }
-        Vector3 want = ballPos - camDir * 6.5f + new Vector3(0f, 0f, 2.6f);
+        // further back and much quicker on its feet when the ball is really
+        // moving, or a super shot leaves the camera looking at empty road
+        float speed = vel.Length();
+        float back = 6.5f + (speed > 60f ? (speed - 60f) * 0.03f : 0f);
+        if (back > 22f) back = 22f;
+        float rate = speed > 80f ? 40f : 6f;
+        Vector3 want = ballPos - camDir * back + new Vector3(0f, 0f, 2.6f + (back - 6.5f) * 0.25f);
         float gz;
         if (TryGround(new Vector3(want.X, want.Y, want.Z + 2f), out gz) && gz > want.Z - 0.8f) want.Z = gz + 0.8f;
-        camPos = Vector3.Lerp(camPos, want, 1f - (float)Math.Exp(-dt * 6f));
+        camPos = Vector3.Lerp(camPos, want, 1f - (float)Math.Exp(-dt * rate));
         cam.Position = camPos;
         cam.PointAt(ballPos + new Vector3(0f, 0f, 0.2f));
     }
@@ -2964,32 +3041,6 @@ public class StreetGolf : Script
         catch { return t.Length * scale * 24f; }
     }
 
-    // Width of a line that has ~INPUT_...~ glyphs in it. The game swaps each
-    // token for a button picture about as wide as the line is tall, and the
-    // width call does not know that.
-    float GlyphW(string t, float scale)
-    {
-        int glyphs = 0;
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(t.Length);
-        int i = 0;
-        while (i < t.Length)
-        {
-            if (t[i] == '~')
-            {
-                int end = t.IndexOf('~', i + 1);
-                if (end > i)
-                {
-                    if (t.Substring(i + 1, end - i - 1).StartsWith("INPUT_")) glyphs++;
-                    i = end + 1;
-                    continue;
-                }
-            }
-            sb.Append(t[i]);
-            i++;
-        }
-        return TxtW(sb.ToString(), scale, FONT_LABEL) + glyphs * scale * 84f;
-    }
-
     float Adv(char ch, float scale, GTA.UI.Font f)
     {
         string k = ch + "|" + scale.ToString("0.###") + "|" + (int)f;
@@ -3038,7 +3089,7 @@ public class StreetGolf : Script
 
     string ModeShort()
     {
-        if (ballMode == BallMode.Super) return MODE_SHORT[(int)ballMode] + " by " + ((int)superMult);
+        if (ballMode == BallMode.Super) return MODE_SHORT[(int)ballMode] + " " + ((int)superMult) + " times as far";
         return MODE_SHORT[(int)ballMode];
     }
 
@@ -3447,29 +3498,79 @@ public class StreetGolf : Script
         }
     }
 
-    // ---- button prompts along the bottom -------------------------------------------------
-    //  The ~INPUT_...~ tokens are replaced by the game with a picture of the
-    //  button, for whichever device was touched last.
+    // ---- button prompts --------------------------------------------------------
+    //  Drawn by the game's own instructional_buttons scaleform, bottom right,
+    //  the strip every menu in the game uses. It is the only thing that can
+    //  turn a button into a picture: a ~INPUT_~ token in ordinary drawn text
+    //  is swapped for the glyph's NAME, "b_2000" and the like, and that is
+    //  what was printed along the bottom. The slots are only rebuilt when
+    //  the state or the input device changes.
+    GTA.Scaleform promptSf;
+    string promptSig = "";
+
     void DrawPrompts(float k)
     {
-        bool pad = UsingPad();
-        string swingBtn = pad ? "~INPUT_ATTACK~" : "~INPUT_JUMP~";
-        string hint;
-        if (mode == Mode.Watch)
-            hint = (airControl ? (pad ? "~INPUT_MOVE_LR~ STEER      " : "W A S D  STEER      ") : "")
-                 + "~INPUT_JUMP~ NEXT BALL";
-        else if (mode == Mode.Backswing)
-            hint = "RELEASE " + swingBtn + " TO HIT";
-        else
-            hint = swingBtn + " SWING      "
-                 + "~INPUT_FRONTEND_LB~ ~INPUT_FRONTEND_RB~ CLUB      "
-                 + "~INPUT_FRONTEND_UP~ ~INPUT_FRONTEND_DOWN~ SETTINGS      "
-                 + "~INPUT_FRONTEND_CANCEL~ QUIT";
+        if (k <= 0.05f || mode == Mode.Off) return;
+        try
+        {
+            if (promptSf == null)
+            {
+                promptSf = new GTA.Scaleform("instructional_buttons");
+                promptSig = "";
+            }
+            if (!promptSf.IsLoaded) return;
 
-        float cx = CanvasW() * 0.5f;
-        float tw = GlyphW(hint, 0.26f);
-        Bar(cx - tw * 0.5f - 14f, 673f, tw + 28f, 26f, Fade(C_INK, k * 0.8f));
-        Txt(hint, cx, 675f, 0.26f, Fade(C_TEXT, k * 0.92f), GTA.UI.Alignment.Center, FONT_LABEL);
+            bool pad = UsingPad();
+            string sig = mode.ToString() + (pad ? "p" : "k") + (airControl ? "a" : "-");
+            if (sig != promptSig)
+            {
+                promptSig = sig;
+                promptSf.CallFunction("CLEAR_ALL");
+                promptSf.CallFunction("TOGGLE_MOUSE_BUTTONS", false);
+                promptSf.CallFunction("CREATE_CONTAINER");
+                int n = 0;
+                Control swing = pad ? Control.Attack : Control.Jump;
+                if (mode == Mode.Watch)
+                {
+                    Slot(ref n, Control.Jump, "NEXT BALL");
+                    if (airControl) Slot(ref n, pad ? Control.MoveLeftRight : Control.MoveUpOnly, "STEER");
+                }
+                else if (mode == Mode.Backswing || mode == Mode.Swing)
+                {
+                    Slot(ref n, swing, "RELEASE TO HIT");
+                }
+                else
+                {
+                    Slot(ref n, swing, "SWING");
+                    Slot(ref n, pad ? Control.FrontendRb : Control.Context, "CLUB");
+                    Slot(ref n, Control.FrontendDown, "SETTINGS");
+                    if (!pad) Slot(ref n, Control.Reload, "NEW BALL");
+                    Slot(ref n, Control.FrontendCancel, "QUIT");
+                }
+                promptSf.CallFunction("DRAW_INSTRUCTIONAL_BUTTONS", -1);
+                promptSf.CallFunction("SET_BACKGROUND_COLOUR", 0, 0, 0, 80);
+            }
+            Function.Call(Hash.DRAW_SCALEFORM_MOVIE_FULLSCREEN, promptSf.Handle, 255, 255, 255, (int)(255f * k), 0);
+        }
+        catch { }
+    }
+
+    // GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING, by hash because the wrapper
+    // name has moved between SHVDN versions: the glyph for this control on
+    // whatever the player is holding
+    void Slot(ref int n, Control c, string label)
+    {
+        string glyph = Function.Call<string>((Hash)0x0499D7B09FC9B407UL, 2, (int)c, true);
+        promptSf.CallFunction("SET_DATA_SLOT", n, glyph, label);
+        n++;
+    }
+
+    void ReleasePrompts()
+    {
+        try { if (promptSf != null) promptSf.Dispose(); }
+        catch { }
+        promptSf = null;
+        promptSig = "";
     }
 
     // =====================================================================
@@ -3506,7 +3607,16 @@ public class StreetGolf : Script
         float w = 176f * (1f + pop);
         float h = 58f * (1f + pop);
         float left = sx - w * 0.5f;
-        float top = sy + 18f + (1f - k) * 12f;     // rises up into place
+        float top = sy + 14f + (1f - k) * 12f;     // rises up into place
+
+        // Under his feet is very nearly the bottom of the screen at the
+        // usual camera height, so the marker has a floor it cannot drop
+        // through, clear of the button strip, and it never leaves the sides.
+        float maxTop = CANVAS_H - 56f - h;
+        if (top > maxTop) top = maxTop;
+        float cw = CanvasW();
+        if (left < 6f) left = 6f;
+        if (left + w > cw - 6f) left = cw - 6f - w;
 
         Bar(left, top, w, h, Fade(C_INK, k * 0.92f));
         Bar(left, top, w, 2f, Fade(C_GREEN, k));
@@ -3523,7 +3633,7 @@ public class StreetGolf : Script
 
         float cx = left + w * 0.5f + 9f;
         Tracked(CLUB_NAMES[clubIndex], cx, top + 6f, 0.30f, Fade(ink, k), FONT_LABEL, TITLE_TRACK, true);
-        Tracked(CarryText(), cx, top + 25f, 0.22f, Fade(C_GREEN, k * 0.95f), FONT_LABEL, TITLE_TRACK, true);
+        Txt(CarryText(), cx, top + 25f, 0.23f, Fade(C_GREEN, k * 0.95f), GTA.UI.Alignment.Center, FONT_LABEL);
 
         if (ballMode != BallMode.Normal)
             Icon(MODE_ICONS[(int)ballMode], left + w - 15f, top + 15f, 14f,
@@ -3599,7 +3709,7 @@ public class StreetGolf : Script
     {
         float loft = clubLoft[c] * (float)(Math.PI / 180.0);
         float v = clubSpeed[c];
-        if (ballMode == BallMode.Super) v *= superMult;
+        if (ballMode == BallMode.Super) v *= SuperSpeedFactor();
         return (float)(v * v * Math.Sin(2.0 * loft) / 9.8);
     }
 

@@ -435,32 +435,6 @@
         catch { return t.Length * scale * 24f; }
     }
 
-    // Width of a line that has ~INPUT_...~ glyphs in it. The game swaps each
-    // token for a button picture about as wide as the line is tall, and the
-    // width call does not know that.
-    float GlyphW(string t, float scale)
-    {
-        int glyphs = 0;
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(t.Length);
-        int i = 0;
-        while (i < t.Length)
-        {
-            if (t[i] == '~')
-            {
-                int end = t.IndexOf('~', i + 1);
-                if (end > i)
-                {
-                    if (t.Substring(i + 1, end - i - 1).StartsWith("INPUT_")) glyphs++;
-                    i = end + 1;
-                    continue;
-                }
-            }
-            sb.Append(t[i]);
-            i++;
-        }
-        return TxtW(sb.ToString(), scale, FONT_LABEL) + glyphs * scale * 84f;
-    }
-
     float Adv(char ch, float scale, GTA.UI.Font f)
     {
         string k = ch + "|" + scale.ToString("0.###") + "|" + (int)f;
@@ -509,7 +483,7 @@
 
     string ModeShort()
     {
-        if (ballMode == BallMode.Super) return MODE_SHORT[(int)ballMode] + " by " + ((int)superMult);
+        if (ballMode == BallMode.Super) return MODE_SHORT[(int)ballMode] + " " + ((int)superMult) + " times as far";
         return MODE_SHORT[(int)ballMode];
     }
 
@@ -918,29 +892,79 @@
         }
     }
 
-    // ---- button prompts along the bottom -------------------------------------------------
-    //  The ~INPUT_...~ tokens are replaced by the game with a picture of the
-    //  button, for whichever device was touched last.
+    // ---- button prompts --------------------------------------------------------
+    //  Drawn by the game's own instructional_buttons scaleform, bottom right,
+    //  the strip every menu in the game uses. It is the only thing that can
+    //  turn a button into a picture: a ~INPUT_~ token in ordinary drawn text
+    //  is swapped for the glyph's NAME, "b_2000" and the like, and that is
+    //  what was printed along the bottom. The slots are only rebuilt when
+    //  the state or the input device changes.
+    GTA.Scaleform promptSf;
+    string promptSig = "";
+
     void DrawPrompts(float k)
     {
-        bool pad = UsingPad();
-        string swingBtn = pad ? "~INPUT_ATTACK~" : "~INPUT_JUMP~";
-        string hint;
-        if (mode == Mode.Watch)
-            hint = (airControl ? (pad ? "~INPUT_MOVE_LR~ STEER      " : "W A S D  STEER      ") : "")
-                 + "~INPUT_JUMP~ NEXT BALL";
-        else if (mode == Mode.Backswing)
-            hint = "RELEASE " + swingBtn + " TO HIT";
-        else
-            hint = swingBtn + " SWING      "
-                 + "~INPUT_FRONTEND_LB~ ~INPUT_FRONTEND_RB~ CLUB      "
-                 + "~INPUT_FRONTEND_UP~ ~INPUT_FRONTEND_DOWN~ SETTINGS      "
-                 + "~INPUT_FRONTEND_CANCEL~ QUIT";
+        if (k <= 0.05f || mode == Mode.Off) return;
+        try
+        {
+            if (promptSf == null)
+            {
+                promptSf = new GTA.Scaleform("instructional_buttons");
+                promptSig = "";
+            }
+            if (!promptSf.IsLoaded) return;
 
-        float cx = CanvasW() * 0.5f;
-        float tw = GlyphW(hint, 0.26f);
-        Bar(cx - tw * 0.5f - 14f, 673f, tw + 28f, 26f, Fade(C_INK, k * 0.8f));
-        Txt(hint, cx, 675f, 0.26f, Fade(C_TEXT, k * 0.92f), GTA.UI.Alignment.Center, FONT_LABEL);
+            bool pad = UsingPad();
+            string sig = mode.ToString() + (pad ? "p" : "k") + (airControl ? "a" : "-");
+            if (sig != promptSig)
+            {
+                promptSig = sig;
+                promptSf.CallFunction("CLEAR_ALL");
+                promptSf.CallFunction("TOGGLE_MOUSE_BUTTONS", false);
+                promptSf.CallFunction("CREATE_CONTAINER");
+                int n = 0;
+                Control swing = pad ? Control.Attack : Control.Jump;
+                if (mode == Mode.Watch)
+                {
+                    Slot(ref n, Control.Jump, "NEXT BALL");
+                    if (airControl) Slot(ref n, pad ? Control.MoveLeftRight : Control.MoveUpOnly, "STEER");
+                }
+                else if (mode == Mode.Backswing || mode == Mode.Swing)
+                {
+                    Slot(ref n, swing, "RELEASE TO HIT");
+                }
+                else
+                {
+                    Slot(ref n, swing, "SWING");
+                    Slot(ref n, pad ? Control.FrontendRb : Control.Context, "CLUB");
+                    Slot(ref n, Control.FrontendDown, "SETTINGS");
+                    if (!pad) Slot(ref n, Control.Reload, "NEW BALL");
+                    Slot(ref n, Control.FrontendCancel, "QUIT");
+                }
+                promptSf.CallFunction("DRAW_INSTRUCTIONAL_BUTTONS", -1);
+                promptSf.CallFunction("SET_BACKGROUND_COLOUR", 0, 0, 0, 80);
+            }
+            Function.Call(Hash.DRAW_SCALEFORM_MOVIE_FULLSCREEN, promptSf.Handle, 255, 255, 255, (int)(255f * k), 0);
+        }
+        catch { }
+    }
+
+    // GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING, by hash because the wrapper
+    // name has moved between SHVDN versions: the glyph for this control on
+    // whatever the player is holding
+    void Slot(ref int n, Control c, string label)
+    {
+        string glyph = Function.Call<string>((Hash)0x0499D7B09FC9B407UL, 2, (int)c, true);
+        promptSf.CallFunction("SET_DATA_SLOT", n, glyph, label);
+        n++;
+    }
+
+    void ReleasePrompts()
+    {
+        try { if (promptSf != null) promptSf.Dispose(); }
+        catch { }
+        promptSf = null;
+        promptSig = "";
     }
 
     // =====================================================================
@@ -977,7 +1001,16 @@
         float w = 176f * (1f + pop);
         float h = 58f * (1f + pop);
         float left = sx - w * 0.5f;
-        float top = sy + 18f + (1f - k) * 12f;     // rises up into place
+        float top = sy + 14f + (1f - k) * 12f;     // rises up into place
+
+        // Under his feet is very nearly the bottom of the screen at the
+        // usual camera height, so the marker has a floor it cannot drop
+        // through, clear of the button strip, and it never leaves the sides.
+        float maxTop = CANVAS_H - 56f - h;
+        if (top > maxTop) top = maxTop;
+        float cw = CanvasW();
+        if (left < 6f) left = 6f;
+        if (left + w > cw - 6f) left = cw - 6f - w;
 
         Bar(left, top, w, h, Fade(C_INK, k * 0.92f));
         Bar(left, top, w, 2f, Fade(C_GREEN, k));
@@ -994,7 +1027,7 @@
 
         float cx = left + w * 0.5f + 9f;
         Tracked(CLUB_NAMES[clubIndex], cx, top + 6f, 0.30f, Fade(ink, k), FONT_LABEL, TITLE_TRACK, true);
-        Tracked(CarryText(), cx, top + 25f, 0.22f, Fade(C_GREEN, k * 0.95f), FONT_LABEL, TITLE_TRACK, true);
+        Txt(CarryText(), cx, top + 25f, 0.23f, Fade(C_GREEN, k * 0.95f), GTA.UI.Alignment.Center, FONT_LABEL);
 
         if (ballMode != BallMode.Normal)
             Icon(MODE_ICONS[(int)ballMode], left + w - 15f, top + 15f, 14f,
@@ -1070,7 +1103,7 @@
     {
         float loft = clubLoft[c] * (float)(Math.PI / 180.0);
         float v = clubSpeed[c];
-        if (ballMode == BallMode.Super) v *= superMult;
+        if (ballMode == BallMode.Super) v *= SuperSpeedFactor();
         return (float)(v * v * Math.Sin(2.0 * loft) / 9.8);
     }
 

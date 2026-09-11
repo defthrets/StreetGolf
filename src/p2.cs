@@ -126,6 +126,7 @@
     void OnAborted(object sender, EventArgs e)
     {
         try { Shutdown(); } catch { }
+        ReleasePrompts();
     }
 
     void OnTick(object sender, EventArgs e)
@@ -877,8 +878,12 @@
         Function.Call(Hash.ACTIVATE_PHYSICS, b.Handle);
         Function.Call(Hash.SET_OBJECT_PHYSICS_PARAMS, b.Handle, -1f, -1f, 0f, 0f, 0.01f, -1f, -1f, -1f, -1f, -1f, -1f);
         Function.Call(Hash.APPLY_FORCE_TO_ENTITY, b.Handle, 1, 0.001f, 0.001f, 0f, 0f, 0f, 0f, 0, false, false, true, false, true);
-        b.Velocity = vel;
+        // The cap comes off BEFORE the velocity goes on. The other way round
+        // the velocity was clamped to the old cap as it was set, and lifting
+        // the cap afterwards did nothing, which is why a super shot flew like
+        // an ordinary one.
         Function.Call(Hash.SET_ENTITY_MAX_SPEED, b.Handle, ModeTopSpeed());
+        b.Velocity = vel;
         b.SetNoCollision(ped, true);
 
         Shot s = new Shot();
@@ -887,6 +892,7 @@
         s.born = Game.GameTime;
         s.prevVz = vel.Z;
         s.mode = ballMode;
+        s.mult = ballMode == BallMode.Super ? superMult : 1f;
         s.prevPos = origin;
         s.lastPt = origin;
         s.pts.Add(origin);
@@ -902,56 +908,93 @@
         if (sweet) Toast("swing", "SWEET SPOT", "dead straight, and a little extra", C_GREEN, 1400);
     }
 
+    // The multiplier is on the CARRY, not on the pace. Range goes with the
+    // square of launch speed, so fifty times the distance is seven times the
+    // speed, which the engine can still fly and the camera can still follow.
+    // Fifty times the SPEED was three and a half kilometres a second: the
+    // ball crossed the loaded world inside two frames and the game binned
+    // it, which looked like nothing happening at all.
+    float SuperSpeedFactor()
+    {
+        float f = (float)Math.Sqrt(superMult);
+        if (f < 1f) f = 1f;
+        if (f > 9.5f) f = 9.5f;
+        return f;
+    }
+
     Vector3 ShapeLaunch(Vector3 vel, Vector3 dir, float speed)
     {
-        if (ballMode == BallMode.Super) return vel * superMult;
+        if (ballMode == BallMode.Super) return vel * SuperSpeedFactor();
         return vel;
     }
 
     float ModeTopSpeed()
     {
-        // the ceiling has to come off entirely or the multiplier is thrown away
-        if (ballMode == BallMode.Super) return 150f * superMult;
+        if (ballMode == BallMode.Super) return 150f * SuperSpeedFactor() + 50f;
         return 150f;
     }
 
     // =====================================================================
-    //  the settings list in the left panel
+    //  the settings drawer on the card
+    //    0 BALL   1 SUPER SHOT   2 POLICE   3 BATONS   4 IMPACT
+    //    5 CAR DAMAGE   6 WALL MARKS   7 TRAIL   8 AIM LINE
+    //    9 AFTERTOUCH   10 UNITS
     // =====================================================================
     string MenuLabel(int i)
     {
         switch (i)
         {
             case 0: return "BALL";
-            case 1: return "POLICE";
-            case 2: return "BATONS";
-            case 3: return "IMPACT";
-            case 4: return "CAR DAMAGE";
-            case 5: return "WALL MARKS";
-            case 6: return "TRAIL";
-            case 7: return "AIM LINE";
-            case 8: return "AFTERTOUCH";
-            case 9: return "UNITS";
+            case 1: return "SUPER SHOT";
+            case 2: return "POLICE";
+            case 3: return "BATONS";
+            case 4: return "IMPACT";
+            case 5: return "CAR DAMAGE";
+            case 6: return "WALL MARKS";
+            case 7: return "TRAIL";
+            case 8: return "AIM LINE";
+            case 9: return "AFTERTOUCH";
+            case 10: return "UNITS";
         }
         return "";
     }
 
     static string OnOff(bool v) { return v ? "ON" : "OFF"; }
 
+    string MenuValue(int i)
+    {
+        switch (i)
+        {
+            case 0: return MODE_NAMES[(int)ballMode];
+            case 1: return "x" + ((int)superMult);
+            case 2: return OnOff(policeWanted);
+            case 3: return OnOff(lessLethalCops);
+            case 4: return "x" + impactPower.ToString("0.00");
+            case 5: return OnOff(carDamage);
+            case 6: return OnOff(impactMarks);
+            case 7: return OnOff(trailEnabled);
+            case 8: return OnOff(aimLine);
+            case 9: return OnOff(airControl);
+            case 10: return unitMode == 1 ? "YARDS" : (unitMode == 2 ? "METRES" : "AUTO");
+        }
+        return "";
+    }
+
     string MenuIcon(int i)
     {
         switch (i)
         {
             case 0: return MODE_ICONS[(int)ballMode];
-            case 1: return "badge";
-            case 2: return "baton";
-            case 3: return "impact";
-            case 4: return "dent";
-            case 5: return "crack";
-            case 6: return "trail";
-            case 7: return "aim";
-            case 8: return "curve";
-            case 9: return "ruler";
+            case 1: return "super";
+            case 2: return "badge";
+            case 3: return "baton";
+            case 4: return "impact";
+            case 5: return "dent";
+            case 6: return "crack";
+            case 7: return "trail";
+            case 8: return "aim";
+            case 9: return "curve";
+            case 10: return "ruler";
         }
         return "ball";
     }
@@ -962,15 +1005,16 @@
         switch (i)
         {
             case 0: return "plain, on fire, explosive, or just absurd";
-            case 1: return "the master switch for police interest";
-            case 2: return "low stars bring sticks and tasers";
-            case 3: return "how hard the ball hits everything";
-            case 4: return "dents, glass and tyres where it lands";
-            case 5: return "chips and cracks in whatever it strikes";
-            case 6: return "the ribbon the ball leaves behind";
-            case 7: return "the arc and the ring where it lands";
-            case 8: return "lean on the ball in flight with the stick";
-            case 9: return "yards, metres, or the game's own setting";
+            case 1: return "how many times further a super shot carries";
+            case 2: return "the master switch for police interest";
+            case 3: return "low stars bring sticks and tasers";
+            case 4: return "how hard the ball hits everything";
+            case 5: return "dents, glass and tyres where it lands";
+            case 6: return "chips and cracks in whatever it strikes";
+            case 7: return "the ribbon the ball leaves behind";
+            case 8: return "the arc and the ring where it lands";
+            case 9: return "lean on the ball in flight with the stick";
+            case 10: return "yards, metres, or the game's own setting";
         }
         return "";
     }
@@ -978,46 +1022,42 @@
     // rows that are a switch are drawn as one, the rest show their value
     static bool MenuIsToggle(int i)
     {
-        return i == 1 || i == 2 || i == 4 || i == 5 || i == 6 || i == 7 || i == 8;
+        return i == 2 || i == 3 || i == 5 || i == 6 || i == 7 || i == 8 || i == 9;
     }
 
     bool MenuBool(int i)
     {
         switch (i)
         {
-            case 1: return policeWanted;
-            case 2: return lessLethalCops;
-            case 4: return carDamage;
-            case 5: return impactMarks;
-            case 6: return trailEnabled;
-            case 7: return aimLine;
-            case 8: return airControl;
+            case 2: return policeWanted;
+            case 3: return lessLethalCops;
+            case 5: return carDamage;
+            case 6: return impactMarks;
+            case 7: return trailEnabled;
+            case 8: return aimLine;
+            case 9: return airControl;
         }
         return false;
+    }
+
+    // the next stop up or down from wherever the multiplier is now
+    static float StepSuper(float cur, int dir)
+    {
+        if (dir > 0)
+        {
+            for (int i = 0; i < SUPER_STEPS.Length; i++)
+                if (SUPER_STEPS[i] > cur + 0.01f) return SUPER_STEPS[i];
+            return SUPER_STEPS[SUPER_STEPS.Length - 1];
+        }
+        for (int i = SUPER_STEPS.Length - 1; i >= 0; i--)
+            if (SUPER_STEPS[i] < cur - 0.01f) return SUPER_STEPS[i];
+        return SUPER_STEPS[0];
     }
 
     void PoliceToast()
     {
         if (policeWanted) Toast("badge", "POLICE ON", "they can take an interest again", C_AMBER, 2200);
         else Toast("badge", "POLICE OFF", "nobody is coming, swing away", C_SKY, 2200);
-    }
-
-    string MenuValue(int i)
-    {
-        switch (i)
-        {
-            case 0: return MODE_NAMES[(int)ballMode];
-            case 1: return OnOff(policeWanted);
-            case 2: return OnOff(lessLethalCops);
-            case 3: return "x" + impactPower.ToString("0.00");
-            case 4: return OnOff(carDamage);
-            case 5: return OnOff(impactMarks);
-            case 6: return OnOff(trailEnabled);
-            case 7: return OnOff(aimLine);
-            case 8: return OnOff(airControl);
-            case 9: return unitMode == 1 ? "YARDS" : (unitMode == 2 ? "METRES" : "AUTO");
-        }
-        return "";
     }
 
     void MenuAdjust(int i, int dir)
@@ -1030,25 +1070,29 @@
                 ModeToast();
                 break;
             case 1:
+                superMult = StepSuper(superMult, dir);
+                if (ballMode == BallMode.Super) clubPop = 1f;
+                break;
+            case 2:
                 policeWanted = !policeWanted;
                 if (policeWanted) noticedNotified = false;
                 else RestorePolice();
                 break;
-            case 2:
+            case 3:
                 lessLethalCops = !lessLethalCops;
                 if (!lessLethalCops) ReleaseCops();
                 break;
-            case 3:
+            case 4:
                 impactPower += 0.25f * dir;
                 if (impactPower < 0f) impactPower = 0f;
                 if (impactPower > 3f) impactPower = 3f;
                 break;
-            case 4: carDamage = !carDamage; break;
-            case 5: impactMarks = !impactMarks; break;
-            case 6: trailEnabled = !trailEnabled; break;
-            case 7: aimLine = !aimLine; break;
-            case 8: airControl = !airControl; break;
-            case 9: unitMode = (unitMode + dir + 3) % 3; break;
+            case 5: carDamage = !carDamage; break;
+            case 6: impactMarks = !impactMarks; break;
+            case 7: trailEnabled = !trailEnabled; break;
+            case 8: aimLine = !aimLine; break;
+            case 9: airControl = !airControl; break;
+            case 10: unitMode = (unitMode + dir + 3) % 3; break;
         }
     }
 

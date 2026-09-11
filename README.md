@@ -1,4 +1,4 @@
-# Street Golf 1.1.0
+# Street Golf 1.1.1
 
 A driving range anywhere in Los Santos. You stand where you are and hit ball
 after ball at the traffic. No hole, no course, no walking after the ball.
@@ -54,8 +54,8 @@ with separate `scripts` directories. Install into the one you actually launch.
 | Quit | `B` | `Backspace` |
 
 You aim by looking. Point the camera at whatever you want to hit and swing. The
-strip along the bottom of the screen shows the buttons for whichever device you
-touched last.
+button strip bottom right is the game's own, and shows the buttons for whichever
+device you touched last.
 
 ---
 
@@ -129,7 +129,7 @@ Three sets of four, cycled with the shoulder buttons.
 | `Normal` | an ordinary golf ball |
 | `Fire` | sets light to everything it touches and leaves fires burning |
 | `Boom` | flies normally, then detonates where it lands |
-| `Super` | every club multiplied. Fifty times by default |
+| `Super` | carries fifty times as far by default, and hits like it. The multiplier is a row in the drawer, from x2 to x200 |
 
 Set the starting mode with `BallMode` in the ini, or cycle with `M`.
 
@@ -183,10 +183,10 @@ normal selves the moment it stops applying. `LessLethalCops` and
 
 ## Settings
 
-Everything lives in `StreetGolf.ini`. The ten you reach for most are in the
+Everything lives in `StreetGolf.ini`. The eleven you reach for most are in the
 settings drawer on the card, under the `D-pad` or the arrow keys: ball mode,
-police, batons, impact power, car damage, wall marks, trail, aim line,
-after-touch and units.
+the super shot multiplier, police, batons, impact power, car damage, wall marks,
+trail, aim line, after-touch and units.
 
 Changes made in the drawer last for the session. The ini holds what it starts as.
 

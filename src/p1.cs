@@ -1,5 +1,5 @@
 ﻿// =====================================================================
-//  STREET GOLF  1.1.0  -  by spitmux
+//  STREET GOLF  1.1.1  -  by spitmux
 //
 //  A driving range anywhere in Los Santos. You stand where you are and
 //  hit ball after ball at the traffic. No hole, no course, no walking
@@ -34,7 +34,7 @@ using Control = GTA.Control;
 public class StreetGolf : Script
 {
     // ---------------- game assets ----------------
-    const string VERSION = "1.1.0";
+    const string VERSION = "1.1.1";
     const string AUTHOR = "spitmux";
 
     const string BALL_MODEL = "prop_golf_ball";
@@ -85,7 +85,7 @@ public class StreetGolf : Script
         "a plain golf ball",
         "lights up whatever it touches",
         "detonates where it lands",
-        "every club multiplied" };
+        "carries" };
 
     // ---------------- settings ----------------
     Keys keyToggle = Keys.F3;
@@ -93,7 +93,9 @@ public class StreetGolf : Script
     Keys keyBallMode = Keys.M;
     Keys keyPolice = Keys.K;
     BallMode ballMode = BallMode.Normal;
-    float superMult = 50f;        // what SUPER SHOT multiplies every club by
+    float superMult = 50f;        // how many times further a SUPER SHOT carries
+    // the stops the drawer steps through; the ini can hold anything in between
+    static readonly float[] SUPER_STEPS = { 2f, 3f, 5f, 8f, 10f, 15f, 20f, 30f, 50f, 75f, 100f, 150f, 200f };
     Control padToggleHold = Control.FrontendLt;
     Control padTogglePress = Control.FrontendAccept;  // the d-pad belongs to the menu now
     int unitMode;                    // 0 auto (game setting), 1 yards, 2 metres
@@ -178,7 +180,7 @@ public class StreetGolf : Script
     bool announced;
     int menuIndex;
     int lastMenuMove;
-    const int MENU_COUNT = 10;
+    const int MENU_COUNT = 11;
     int dbgProbes, dbgHits, dbgImpacts;
     string dbgLast = "-";
     string blockReason = "";
@@ -217,6 +219,7 @@ public class StreetGolf : Script
         public float steerUsed;
         public float rollSteerUsed;
         public BallMode mode;
+        public float mult = 1f;     // the super shot multiplier this ball left the tee with
         public bool spent;          // one shot effects already used
         public int homeTarget;
         public int homeAt;
