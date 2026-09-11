@@ -1,81 +1,147 @@
-⛳ STREET GOLF — a driving range anywhere in Los Santos.
-
-Stand where you are and hit ball after ball into the traffic. 🏌️ No hole, no course, no walking after the ball. It is built on GTA V's own golf minigame, so it uses the real swing animations, the real club props, the real golf ball flown by the game's physics, and the game's own golf sound set.
-
-Tee up on a street, a rooftop, the freeway or the beach. Line one up, swing, and watch what happens. 💥
-
-
-✨ WHAT IT DOES
-
-⛳ Play anywhere. You stay put and a fresh ball is teed up after every shot, so you can rapid-fire at whatever drives past.
-
-🎯 Aim by looking. Point the camera where you want it to go. Hold to charge the power meter, release inside the sweet spot for a clean strike.
-
-🎥 Watch it land. The camera follows the ball for as long as you like, even after it stops rolling, until you tap the next-ball button.
-
-🌀 Bend it in the air. Lean on the ball mid-flight to curl it around a bus, with less authority once it is bouncing and rolling.
-
-🚗 Real damage. Cars take a dent exactly where the ball lands, lose body health, set off their alarm and rock on their springs. Hard hits knock windows out and take tyres off rims.
-
-🧱 Marks everything. Chipped concrete, cracked render and spidered glass wherever the ball hits.
-
-🏃 FORE! Pedestrians ragdoll and take damage that scales with how hard you hit it.
-
-🏌️ Twelve clubs. The standard four, a flatter set that runs out along a street instead of arcing over it, and a third set swung much harder.
-
-📊 A proper HUD. A range card with the club, the ball, the police and your session figures, a tee marker under the golfer with the power meter, a feed for every smash and FORE!, and a settings drawer you open with the D-pad. Custom icons throughout, and the game's own button glyphs for the prompts.
+░█▀▀░▀█▀░█▀▄░█▀▀░█▀▀░▀█▀
+░▀▀█░░█░░█▀▄░█▀▀░█▀▀░░█░
+░▀▀▀░░▀░░▀░▀░▀▀▀░▀▀▀░░▀░
+░█▀▀░█▀█░█░░░█▀▀
+░█░█░█░█░█░░░█▀▀
+░▀▀▀░▀▀▀░▀▀▀░▀░░
 
 
-💣 BALL MODES
+A driving range anywhere in Los Santos. You stand where you are and hit ball after ball into the traffic. No hole, no course, no walking after the ball.
 
-⚪ Normal — an ordinary golf ball.
-🔥 Fireball — sets light to everything it touches and leaves fires burning.
-💥 Boom — flies normally, then detonates where it lands.
-🚀 Super Shot — every club multiplied. Fifty times, by default. Absurd.
+<b>Free.</b> Open source — the code and every release are on <a href="https://github.com/defthrets/StreetGolf">GitHub</a>.<br><br>
 
+<b>THE GAME'S OWN GOLF, TAKEN OUTSIDE</b>
 
-👮 POLICE
+It is built on the golf minigame that is already in the game: the same swing animations, the same four club props in his hand, the same golf ball flown by the game's own physics, the same sound off the tee and the same divot. Nothing is faked. He just does it on a pavement.
 
-The cops are handled so you can actually play. For the first three minutes they ignore you completely. After that they still do not care about a man hitting golf balls until you drop three people in quick succession, and being unseen overrides everything. At one and two stars they carry nightsticks and tasers instead of guns, as long as you have not drawn a firearm yourself. 🚔
+You aim by looking. Point the camera at whatever you want to hit, hold the trigger and the meter climbs, then falls back, so you time it. Let go inside the green band near the top and it goes where you pointed it, with a little extra; miss the band and it hooks or slices by how far you missed. The left stick fine-tunes the line if the camera is not quite there.
 
-All of it can be switched off with one setting, or one key, if you would rather be shot at.
+A fresh ball is teed up after every shot, so you can rapid-fire at whatever drives past. Up to ten stay in the world at once.
 
+<b>The camera stays on the ball.</b> After the strike it follows it — over the roof, off the bus, down the road — and it <i>keeps</i> following after the ball has stopped, until you press the button. Then you are back on the tee.
 
-📦 INSTALL
-
-1. Install Script Hook V — http://www.dev-c.com/gtav/scripthookv/
-2. Install ScriptHookVDotNet v3 — https://github.com/scripthookvdotnet/scripthookvdotnet/releases
-3. Unpack the zip and merge its scripts folder into your GTA V scripts folder. You get StreetGolf.cs, StreetGolf.ini and a StreetGolf folder with the HUD icons.
-4. Start the game and press F3. ⛳
-
-⚠️ If you have both GTA V Legacy and Enhanced installed, they are separate folders with separate scripts folders. Install into the one you actually launch.
+<b>You can lean on it while it is out.</b> Left stick in the air bends the shot sideways or holds it up; less authority once it is bouncing, less again once it is rolling, and each shot gets a fixed allowance, so it is a nudge rather than a remote control. A bar under the carry readout shows how much is left.
 
 
-🎮 CONTROLS
+<b>TWELVE CLUBS</b>
 
-Toggle — F3 / hold LT + A
-Aim — mouse / right stick
-Swing — hold SPACE or LMB / hold RT, release to hit
-Change club — Q and E, or the mouse wheel / LB and RB
-Next ball, stop watching — SPACE / A
-Steer the ball — W A S D / left stick
-Settings drawer — arrow keys / D-pad
-Ball mode — M
-Police on and off — K
-Fresh ball — N
-Quit — BACKSPACE / B
+Three sets of four, on the shoulder buttons.
+
+<ul>
+<li> <b>Driver, Iron, Wedge, Putter.</b> The four the minigame has, at their own launch angles and speeds.</li>
+<li> <b>Driver 2, Iron 2, Wedge 2, Power Putter.</b> Flatter and a little further, so they run out along a street instead of arcing over it.</li>
+<li> <b>Driver 3, Iron 3, Wedge 3, Putter 3.</b> The standard arcs, swung a great deal harder.</li>
+</ul>
+
+Every one borrows its base club's prop, animation and impact timing, so the extra sets cost nothing but a launch angle and a speed — and both are in the ini if you want your own.
 
 
-⚙️ SETTINGS
+<b>WHAT IT DOES TO WHAT IT HITS</b>
 
-Ten settings are in the drawer on the HUD card, reachable with the D-pad or the arrow keys while you play: ball mode, police, batons, impact power, car damage, wall marks, trail, aim line, after-touch and units. Everything else lives in StreetGolf.ini — club speeds and lofts, trail thickness, the sweet spot, police timings and more.
+Everything scales with how fast the ball is going when it connects, so a putt rolls off harmlessly and a full driver does real harm.
+
+<ul>
+<li> <b>Cars take it exactly where the ball lands.</b> The panel caves in at the point of contact, body health goes with it, the alarm goes off and it rocks on its springs. A hard one above the waistline puts a window out — the right window, worked out from where on the body it struck — and a low one on a corner takes the tyre off the rim. Straight through the bonnet hurts the engine.</li>
+<li> <b>Walls, roads and glass take the game's own impact damage.</b> Chipped concrete, cracked render, spidered glass and a puff of dust: the marks the game already knows how to leave.</li>
+<li> <b>Pedestrians go down.</b> FORE! They ragdoll, take damage that scales with the strike, and are thrown along the ball's line.</li>
+<li> <b>Loose props get shoved.</b> Bins, cones, signs.</li>
+</ul>
+
+Contact is found properly. A ball at sixty metres a second crosses a wall between two frames, so instead of trusting the collision flag a probe is swept along the path it covered since the last frame and pushed <i>past</i> where it is now — because physics halts the ball a fraction short of what it hits, and a probe drawn only between two frame positions runs entirely outside every wall. That is why it registers on a lamp post and on a window pane.
 
 
-✅ REQUIREMENTS
+<b>FOUR BALLS</b>
 
-Script Hook V
-ScriptHookVDotNet v3 — tested on 3.6, the 3.7 nightlies and 3.9 Enhanced
+<ul>
+<li> <b>Normal.</b> A golf ball.</li>
+<li> <b>Fireball.</b> Sets light to whatever it touches and leaves fires burning where it bounced.</li>
+<li> <b>Boom.</b> Flies exactly like a normal ball, then detonates where it lands. Not before.</li>
+<li> <b>Super Shot.</b> Every club multiplied. Fifty times, by default. It is not subtle.</li>
+</ul>
 
-Distances follow the game's own measurement setting, the same as vanilla golf. The HUD is sized off screen height, so it will not stretch on an ultrawide.
+One press in the settings drawer, or <b>M</b>.
 
-Credit to Rockstar for the golf assets. This just lets you use them in the street. ⛳
+
+<b>A HUD BUILT FOR IT</b>
+
+<ul>
+<li> <b>A range card</b> top left: the club in hand with its carry and a rail of the twelve showing which one and which set, the ball, the session — balls, cars, people, your best drive and your last — and the police.</li>
+<li> <b>A tee marker</b> under his feet with the power meter, right where you are looking when you swing. Amber on the way up, green in the sweet spot, red past it, and it flares when the club connects.</li>
+<li> <b>A feed</b> on the right for what the ball just did — SMASH!, FORE!, LONGEST DRIVE, BOOM — each with its own picture.</li>
+<li> <b>The carry</b> top centre while the camera is on the ball, in the game's own big font.</li>
+<li> <b>A settings drawer</b> in the card that slides open when you touch the D-pad and closes a few seconds after you stop. Ten settings, switches drawn as switches, and a line under the list saying what the selected one does.</li>
+</ul>
+
+Thirty icons drawn for it, and the button prompts along the bottom use the game's own button pictures, so they show the right buttons for a pad or a keyboard without being told. It is sized off screen height, so it does not stretch on an ultrawide.
+
+
+<b>THE POLICE</b>
+
+Handled so you can actually play.
+
+<ul>
+<li> <b>Three minutes of grace.</b> For the first three minutes of a session they ignore you completely. A clock on the card counts it down.</li>
+<li> <b>Then they still do not care</b> about a man hitting golf balls, until you drop three people inside forty-five seconds. Older hits are forgotten, so the occasional casualty never builds up.</li>
+<li> <b>Unseen is unseen.</b> If nobody has a line of sight to you there is no heat, regardless. The card says NO WITNESS when that is what is saving you.</li>
+<li> <b>Batons and tasers.</b> A man with a golf club is a nuisance, not a gunfight. At one and two stars they come with a nightstick close in and a taser further back — unless you have drawn a firearm yourself, in which case they answer whatever you are holding. Their guns are only holstered, never taken, so they are their normal selves the moment it stops applying.</li>
+</ul>
+
+Any stars you had when you started are left alone: this stops the mod <i>creating</i> heat, it does not wipe heat you earned. One switch in the drawer, or <b>K</b>, turns the lot off if you would rather be shot at.
+
+
+<b>YOURS TO CHANGE</b>
+
+Ten settings in the drawer while you play: ball, police, batons, impact power, car damage, wall marks, trail, aim line, after-touch and units. The other sixty-odd are in StreetGolf.ini with a line each: every club's speed and loft, the sweet spot, how the trail looks, the police timings, the after-touch allowances, how hard a car gets shoved. Your best drive and your totals persist between sessions in a text file beside it.
+
+
+<b>INSTALL</b>
+
+Drag into your GTA V folder, say yes to merging, load a save, press <b>F3</b>. Needs ScriptHookV and ScriptHookVDotNet 3 — tested on 3.6, the 3.7 nightlies and 3.9 Enhanced, and it works on Legacy and Enhanced from the same files. No game file is modified and nothing is written to your save.
+
+It is source, not a DLL: ScriptHookVDotNet compiles StreetGolf.cs when the game starts, so there is nothing to unblock, and <b>Insert</b> reloads it without restarting.
+
+<b>❗ If you have both Legacy and Enhanced installed</b> they are separate folders with separate scripts folders. Put it in the one you actually launch.
+
+
+<b>KEYS</b>
+
+<ul>
+<li><b>F3</b> — Street Golf on and off</li>
+<li><b>Space</b> — hold to swing, release to hit; while the ball is out, the next ball. <b>Left mouse</b> swings too</li>
+<li><b>Q</b> and <b>E</b>, or the mouse wheel — club</li>
+<li><b>A</b> and <b>D</b> — fine aim; <b>W A S D</b> steers the ball in flight</li>
+<li><b>Arrow keys</b> — the settings drawer</li>
+<li><b>M</b> — ball; <b>K</b> — police; <b>N</b> — fresh ball; <b>Backspace</b> — quit</li>
+</ul>
+
+The F-key and the letters can be changed in the ini.
+
+<b>On a controller:</b> hold <b>LT</b> and press <b>A</b> to start. <b>RT</b> swings, <b>LB</b> and <b>RB</b> change club, the left stick fine-aims and then steers the ball, <b>A</b> stops watching and tees the next one, the <b>D-pad</b> works the drawer and <b>B</b> quits. The prompts along the bottom switch to the pad's buttons the moment you pick it up.
+
+
+--------------------------------------------------------------------------------
+  CHANGELOG
+--------------------------------------------------------------------------------
+
+<b>1.1.0</b>
+
+<ul>
+<li> <b>A new HUD, top to bottom.</b> A range card with the club, the ball, the police and the session; a tee marker under the golfer with the power meter; a feed on the right for every smash and FORE!; the carry top centre while the camera is on the ball; and a settings drawer that slides open on the D-pad. Thirty icons drawn for it, and button prompts that use the game's own button pictures.</li>
+<li> <b>The after-touch allowance is on screen</b> for the first time, as a bar under the carry.</li>
+<li> <b>Shot results are toasts, not notifications.</b> The centre flash text and most of the game's own notification feed are gone; what the ball did lands in the feed with a picture.</li>
+<li> <b>Animation runs off frame time</b> rather than per frame, so it moves the same at 30 and at 144.</li>
+<li> A stale landing prediction is no longer shown when the aim line is off. New ini key <b>MenuAutoHide</b>: seconds the drawer stays open, 0 keeps it open.</li>
+</ul>
+
+<b>1.0.0</b>
+
+First release.
+
+<ul>
+<li>The game's own golf, playable anywhere: its animations, clubs, ball, sounds and particles. Aim with the camera, a timed power meter with a sweet spot, a fresh ball after every shot, the camera on the ball until you say otherwise.</li>
+<li>Twelve clubs in three sets. Four balls: Normal, Fireball, Boom and Super Shot.</li>
+<li>Impacts found by a swept probe: cars dented where the ball lands, glass out, tyres off, walls marked, pedestrians down.</li>
+<li>After-touch in the air, on the bounce and on the roll.</li>
+<li>Police with three minutes' grace, a witness check, a body count before they care, and batons and tasers at low stars.</li>
+<li>Full controller support. Works on SHVDN 3.6, the 3.7 nightlies and 3.9 Enhanced from one source file.</li>
+</ul>
