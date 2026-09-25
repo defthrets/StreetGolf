@@ -1,4 +1,4 @@
-# Street Golf 1.1.1
+# Street Golf 1.1.2
 
 A driving range anywhere in Los Santos. You stand where you are and hit ball
 after ball at the traffic. No hole, no course, no walking after the ball.
@@ -61,14 +61,13 @@ device you touched last.
 
 ## The HUD
 
-**The card**, top left, is the range card for the session:
+**The card**, top left, is the range card for the session, one line each:
 
-- the club in hand, its carry, and a rail of the twelve clubs showing which of
-  the four you are holding and which of the three sets it belongs to
-- the ball mode, and what it does in a line
-- balls hit, cars hit, pedestrians hit, your best drive and your last one
+- the club in hand, which set it is from, and how far it carries
+- the ball: normal, fireball, boom, or super shot and its multiplier
 - the police: off, the grace clock, whether anyone can see you, how many people
   you have dropped, or your stars
+- the session: balls, cars, pedestrians, and your best drive ever
 - a **settings drawer** that slides open when you touch the `D-pad` or the
   arrow keys and closes again a few seconds after you stop. Up and down pick a
   row, left and right change it. Switches are drawn as switches; a line under
@@ -76,7 +75,7 @@ device you touched last.
   long it stays open, and `0` keeps it open all the time.
 
 **The tee marker** sits under the golfer's feet: the club, the carry, and the
-power meter, right where you are looking when you swing. The meter runs amber
+power meter, nothing else, right where you are looking when you swing. The meter runs amber
 up to the sweet spot, green inside it and red past it, and the marker flares
 when the club connects.
 
@@ -128,7 +127,7 @@ Three sets of four, cycled with the shoulder buttons.
 | --- | --- |
 | `Normal` | an ordinary golf ball |
 | `Fire` | sets light to everything it touches and leaves fires burning |
-| `Boom` | flies normally, then detonates where it lands |
+| `Boom` | flies normally, then detonates the instant it touches down, or hits anything, or lands in water |
 | `Super` | carries fifty times as far by default, and hits like it. The multiplier is a row in the drawer, from x2 to x200 |
 
 Set the starting mode with `BallMode` in the ini, or cycle with `M`.

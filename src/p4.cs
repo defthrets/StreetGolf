@@ -225,14 +225,14 @@
     const float CANVAS_H = 720f;
     const float CARD_X = 22f;
     const float CARD_Y = 54f;
-    const float CARD_W = 238f;
+    const float CARD_W = 236f;
     const float CARD_PAD = 12f;
     const float ROW_H = 20f;
     const float H_HEAD = 40f;
-    const float H_CLUB = 94f;
-    const float H_BALL = 44f;
-    const float H_STATS = 72f;
+    const float H_CLUB = 54f;
+    const float H_BALL = 30f;
     const float H_COPS = 28f;
+    const float H_STATS = 26f;
     const float H_DRAWER = 24f;
     const float TITLE_TRACK = 1.7f;
     const int PULSE_MS = 1500;
@@ -570,136 +570,65 @@
         float iw = w - CARD_PAD * 2f;
         float dk = Ease(drawerK);
         float listH = MENU_COUNT * ROW_H + 24f;
-        float h = H_HEAD + H_CLUB + H_BALL + H_STATS + H_COPS + H_DRAWER + listH * dk + 4f;
+        float h = H_HEAD + H_CLUB + H_BALL + H_COPS + H_STATS + H_DRAWER + listH * dk + 4f;
 
         Bar(x, y, w, h, Fade(C_INK, a));
         Bar(x, y + 2f, w, H_HEAD - 2f, Fade(C_INK2, a));
         Bar(x, y, w, 2f, Fade(C_GREEN, a));
 
-        // header
         Icon("ball", ix + 11f, y + 21f, 22f, Fade(C_TEXT, a));
         Txt("STREET GOLF", ix + 30f, y + 5f, 0.36f, Fade(C_TEXT, a), GTA.UI.Alignment.Left, FONT_TITLE);
         string ver = "v" + VERSION;
         Txt(ver, ix + iw - TxtW(ver, 0.18f, FONT_LABEL), y + 14f, 0.18f, Fade(C_DIMM, a), GTA.UI.Alignment.Left);
 
+        // one line each, top to bottom: club, ball, police, session, settings
         float cy = y + H_HEAD;
         Rule(x, cy, w, a);
-        cy = ClubBlock(ix, cy, iw, a);
+        cy = ClubRow(ix, cy, iw, a);
         Rule(x, cy, w, a);
-        cy = BallBlock(ix, cy, iw, a);
+        cy = BallRow(ix, cy, iw, a);
         Rule(x, cy, w, a);
-        cy = StatsBlock(ix, cy, iw, a);
+        cy = CopsRow(ix, cy, iw, a);
         Rule(x, cy, w, a);
-        cy = CopsBlock(ix, cy, iw, a);
+        cy = SessionRow(ix, cy, iw, a);
         Rule(x, cy, w, a);
         DrawerBlock(x, ix, cy, w, iw, a, dk);
     }
 
-    float ClubBlock(float ix, float y, float iw, float a)
+    // the club in hand, and how far it goes
+    float ClubRow(float ix, float y, float iw, float a)
     {
         float ty = y + 10f;
-        float tile = 46f;
+        float tile = 34f;
         float flare = clubPop > strikePop ? clubPop : strikePop;
         Color ink = Blend(C_TEXT, C_AMBER, flare);
 
         Bar(ix, ty, tile, tile, Fade(C_INK2, a));
-        Icon(CLUB_ICONS[Base()], ix + tile * 0.5f, ty + tile * 0.5f, 34f * (1f + clubPop * 0.15f), Fade(ink, a));
+        Icon(CLUB_ICONS[Base()], ix + tile * 0.5f, ty + tile * 0.5f, 26f * (1f + clubPop * 0.15f), Fade(ink, a));
 
         float tx = ix + tile + 10f;
-        Txt(CLUB_NAMES[clubIndex], tx, ty - 5f, 0.40f, Fade(ink, a), GTA.UI.Alignment.Left);
-        Txt(SET_TAGS[Set()], tx, ty + 21f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
-        float lw = TxtW("CARRY", 0.20f, FONT_LABEL);
-        Txt("CARRY", tx, ty + 35f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
-        Txt(CarryText(), tx + lw + 6f, ty + 33f, 0.25f, Fade(C_GREEN, a), GTA.UI.Alignment.Left);
+        Txt(CLUB_NAMES[clubIndex], tx, ty - 6f, 0.36f, Fade(ink, a), GTA.UI.Alignment.Left);
+        Txt(SET_TAGS[Set()], tx, ty + 18f, 0.19f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
 
-        // the rail: the four clubs, and which of the three sets is in hand
-        float ry = ty + tile + 10f;
-        for (int b = 0; b < 4; b++)
-        {
-            float sx = ix + 4f + b * 26f + 9f;
-            bool on = (b == Base());
-            Icon(CLUB_ICONS[b], sx, ry + 7f, 15f, Fade(on ? C_TEXT : C_DIMM, a));
-            for (int s = 0; s < 3; s++)
-            {
-                bool lit = on && s == Set();
-                Bar(sx - 6f + s * 5f, ry + 18f, 3f, 3f, Fade(lit ? C_AMBER : C_DIMM, a * (lit ? 1f : 0.55f)));
-            }
-        }
-        StatePill(ix + iw, ry + 2f, a);
+        string carry = CarryText();
+        float cw = TxtW(carry, 0.32f, FONT_LABEL);
+        Txt(carry, ix + iw - cw, ty - 5f, 0.32f, Fade(C_GREEN, a), GTA.UI.Alignment.Left);
+        float lw = TxtW("CARRY", 0.17f, FONT_LABEL);
+        Txt("CARRY", ix + iw - lw, ty + 19f, 0.17f, Fade(C_DIMM, a), GTA.UI.Alignment.Left);
         return y + H_CLUB;
     }
 
-    // what the golfer is doing right now, in the corner of the club block
-    void StatePill(float rightX, float y, float a)
+    // what leaves the tee
+    float BallRow(float ix, float y, float iw, float a)
     {
-        string t;
-        Color c;
-        bool live = false;
-        switch (mode)
-        {
-            case Mode.Watch: t = "WATCHING"; c = C_SKY; live = true; break;
-            case Mode.Backswing: t = "BACKSWING"; c = C_AMBER; break;
-            case Mode.Swing: t = "SWING"; c = C_AMBER; break;
-            case Mode.Ready:
-                if (reloadTimer > 0f) { t = "TEEING UP"; c = C_MUTE; }
-                else { t = "READY"; c = C_GREEN; live = true; }
-                break;
-            default: t = "OFF"; c = C_DIMM; break;
-        }
-        float tw = TxtW(t, 0.20f, FONT_LABEL);
-        float pw = tw + 24f, ph = 16f;
-        float px = rightX - pw;
-        Bar(px, y, pw, ph, Fade(c, a * 0.14f));
-        float dot = live ? 0.55f + 0.45f * Pulse() : 1f;
-        Bar(px + 7f, y + 6f, 4f, 4f, Fade(c, a * dot));
-        Txt(t, px + 16f, y - 1f, 0.20f, Fade(c, a), GTA.UI.Alignment.Left);
-    }
-
-    float BallBlock(float ix, float y, float iw, float a)
-    {
-        float ty = y + 8f;
         Color tint = MODE_TINT[(int)ballMode];
-        Bar(ix, ty, 28f, 28f, Fade(tint, a * 0.16f));
         float glow = ballMode == BallMode.Normal ? 1f : 0.8f + 0.2f * Pulse();
-        Icon(MODE_ICONS[(int)ballMode], ix + 14f, ty + 14f, 20f, Fade(tint, a * glow));
-
-        float tx = ix + 38f;
-        float lw = TxtW("BALL", 0.20f, FONT_LABEL);
-        Txt("BALL", tx, ty - 1f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
-        Txt(ModeTitle(), tx + lw + 7f, ty - 3f, 0.27f, Fade(tint, a), GTA.UI.Alignment.Left);
-        Txt(ModeShort(), tx, ty + 14f, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        Icon(MODE_ICONS[(int)ballMode], ix + 9f, y + 15f, 18f, Fade(tint, a * glow));
+        Txt("BALL", ix + 24f, y + 5f, 0.24f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
+        string t = ModeTitle();
+        float tw = TxtW(t, 0.24f, FONT_LABEL);
+        Txt(t, ix + iw - tw, y + 5f, 0.24f, Fade(tint, a), GTA.UI.Alignment.Left);
         return y + H_BALL;
-    }
-
-    float StatsBlock(float ix, float y, float iw, float a)
-    {
-        float ty = y + 8f;
-        float gap = 6f;
-        float tw = (iw - gap * 2f) / 3f;
-        StatTile(ix, ty, tw, "ball", shots.ToString(), "BALLS", a);
-        StatTile(ix + tw + gap, ty, tw, "car", sessionCars.ToString(), "CARS", a);
-        StatTile(ix + (tw + gap) * 2f, ty, tw, "ped", sessionPeds.ToString(), "PEDS", a);
-
-        float ry = ty + 46f;
-        Icon("trophy", ix + 8f, ry + 8f, 15f, Fade(C_AMBER, a));
-        float lw = TxtW("BEST", 0.20f, FONT_LABEL);
-        Txt("BEST", ix + 20f, ry, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
-        Txt(Dist(bestShotDist), ix + 20f + lw + 6f, ry - 2f, 0.25f, Fade(C_GREEN, a), GTA.UI.Alignment.Left);
-
-        string last = Dist(lastShotDist);
-        float vw = TxtW(last, 0.25f, FONT_LABEL);
-        float l2 = TxtW("LAST", 0.20f, FONT_LABEL);
-        Txt(last, ix + iw - vw, ry - 2f, 0.25f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
-        Txt("LAST", ix + iw - vw - 6f - l2, ry, 0.20f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
-        return y + H_STATS;
-    }
-
-    void StatTile(float x, float y, float w, string icon, string n, string label, float a)
-    {
-        Bar(x, y, w, 40f, Fade(C_INK2, a));
-        Icon(icon, x + 12f, y + 20f, 15f, Fade(C_MUTE, a));
-        Txt(n, x + 24f, y + 1f, 0.33f, Fade(C_TEXT, a), GTA.UI.Alignment.Left);
-        Txt(label, x + 24f, y + 24f, 0.17f, Fade(C_DIMM, a), GTA.UI.Alignment.Left);
     }
 
     void CopStatus(out string t, out Color c, out bool hot)
@@ -727,7 +656,7 @@
         hot = true;
     }
 
-    float CopsBlock(float ix, float y, float iw, float a)
+    float CopsRow(float ix, float y, float iw, float a)
     {
         string t;
         Color c;
@@ -754,6 +683,18 @@
             Txt(t, ix + iw - tw, y + 4f, 0.23f, Fade(c, a * glow), GTA.UI.Alignment.Left);
         }
         return y + H_COPS;
+    }
+
+    // the session in one line, and the best drive ever at the end of it
+    float SessionRow(float ix, float y, float iw, float a)
+    {
+        string s = shots + " BALLS    " + sessionCars + " CARS    " + sessionPeds + " PEDS";
+        Txt(s, ix, y + 5f, 0.21f, Fade(C_MUTE, a), GTA.UI.Alignment.Left);
+        string best = Dist(bestShotDist);
+        float bw = TxtW(best, 0.22f, FONT_LABEL);
+        Txt(best, ix + iw - bw, y + 4f, 0.22f, Fade(C_GREEN, a), GTA.UI.Alignment.Left);
+        Icon("trophy", ix + iw - bw - 12f, y + 13f, 13f, Fade(C_AMBER, a));
+        return y + H_STATS;
     }
 
     void DrawerBlock(float x, float ix, float y, float w, float iw, float a, float dk)
@@ -998,7 +939,7 @@
         iconBudget = 16;
 
         float pop = clubPop * 0.05f + strikePop * 0.04f;
-        float w = 176f * (1f + pop);
+        float w = 168f * (1f + pop);
         float h = 58f * (1f + pop);
         float left = sx - w * 0.5f;
         float top = sy + 14f + (1f - k) * 12f;     // rises up into place
@@ -1023,21 +964,15 @@
 
         float flare = clubPop > strikePop ? clubPop : strikePop;
         Color ink = Blend(C_TEXT, C_AMBER, flare);
-        Icon(CLUB_ICONS[Base()], left + 18f, top + 20f, 22f * (1f + clubPop * 0.2f), Fade(ink, k));
 
-        float cx = left + w * 0.5f + 9f;
+        float cx = left + w * 0.5f;
         Tracked(CLUB_NAMES[clubIndex], cx, top + 6f, 0.30f, Fade(ink, k), FONT_LABEL, TITLE_TRACK, true);
         Txt(CarryText(), cx, top + 25f, 0.23f, Fade(C_GREEN, k * 0.95f), GTA.UI.Alignment.Center, FONT_LABEL);
 
+        // a special ball is worth a reminder in the corner, a plain one is not
         if (ballMode != BallMode.Normal)
-            Icon(MODE_ICONS[(int)ballMode], left + w - 15f, top + 15f, 14f,
+            Icon(MODE_ICONS[(int)ballMode], left + w - 14f, top + 14f, 14f,
                 Fade(MODE_TINT[(int)ballMode], k * (0.75f + 0.25f * Pulse())));
-
-        if (reloadTimer > 0f && mode == Mode.Ready)
-        {
-            Icon("tee", left + w * 0.5f - 34f, top - 9f, 12f, Fade(C_MUTE, k));
-            Tracked("TEEING UP", left + w * 0.5f + 6f, top - 17f, 0.20f, Fade(C_MUTE, k), FONT_LABEL, TITLE_TRACK, true);
-        }
 
         Meter(left + 12f, top + h - 14f, w - 24f, 6f, k);
     }

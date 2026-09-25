@@ -220,6 +220,7 @@
 
         if (!s.done)
         {
+            float lastVz = s.prevVz;      // before ProcessImpact overwrites it
             ProcessImpact(s, pos, vel, speed, now, me);
 
             // A mode can destroy the ball outright at the moment of contact -
@@ -231,11 +232,44 @@
                 return false;
             }
 
+            // BOOM lands. The probe finds walls, cars and people, but a bounce
+            // off the ground happens between two frames with the ball above
+            // the surface in both, so the probe never saw it and the ball
+            // skipped on for seconds until something else set it off. Ask the
+            // physics instead: the first frame it is no longer in the air, or
+            // its fall is thrown back upwards, is the landing.
+            if (s.mode == BallMode.Boom && !s.spent && BoomArmed(s, pos))
+            {
+                bool landed = false;
+                try { landed = !Function.Call<bool>(Hash.IS_ENTITY_IN_AIR, s.ball.Handle); }
+                catch { }
+                if (!landed && lastVz < -1.5f && vel.Z > lastVz + 2.5f) landed = true;
+                if (!landed)
+                {
+                    float above = 1f;
+                    try { above = s.ball.HeightAboveGround; }
+                    catch { }
+                    if (above < 0.12f && vel.Z <= 0.5f) landed = true;
+                }
+                if (landed)
+                {
+                    Detonate(s, pos, me);
+                    s.prevPos = pos;
+                    return false;
+                }
+            }
+
             if (!s.splashed && (s.ball.IsInWater || BelowWater(pos)))
             {
                 s.splashed = true;
                 PlaySoundOn("GOLF_BALL_IN_WATER_MASTER", s.ball);
                 PlayFxAt("scr_golf_landing_water", pos, 0f);
+                if (s.mode == BallMode.Boom && !s.spent)
+                {
+                    Detonate(s, pos, me);
+                    s.prevPos = pos;
+                    return false;
+                }
                 FinishShot(s);
             }
 
@@ -474,22 +508,8 @@
         switch (s.mode)
         {
             case BallMode.Boom:
-                if (s.spent) break;
-                // An ordinary golf ball until it has genuinely got away from
-                // the tee. Without this it detonated on the very first contact
-                // the probe found, which is the ground under the golfer's own
-                // feet, a fraction of a second after the club met the ball.
-                if (s.age < 0.25f || s.origin.DistanceTo(p) < 6f) break;
-                s.spent = true;
-                try { World.AddExplosion(p, ExplosionType.Grenade, 4.0f, 1.5f, me, true, false); }
-                catch { }
-                Jolt(p, 1.1f);
-                Rumble(340, 250);
-                Toast("bomb", "BOOM", "", C_RED, 1600);
-                try { if (s.ball != null && s.ball.Exists()) s.ball.Delete(); }
-                catch { }
-                s.ball = null;
-                FinishShot(s);
+                if (s.spent || !BoomArmed(s, p)) break;
+                Detonate(s, p, me);
                 return false;
 
             case BallMode.Fire:
@@ -503,6 +523,28 @@
 
         }
         return true;
+    }
+
+    // An ordinary golf ball until it has genuinely got away from the tee.
+    // Without this it went off on the very first contact found, which is
+    // the ground under the golfer's own feet as the club meets the ball.
+    static bool BoomArmed(Shot s, Vector3 at)
+    {
+        return s.age >= 0.25f && s.origin.DistanceTo(at) >= 6f;
+    }
+
+    void Detonate(Shot s, Vector3 p, Ped me)
+    {
+        s.spent = true;
+        try { World.AddExplosion(p, ExplosionType.Grenade, 4.0f, 1.5f, me, true, false); }
+        catch { }
+        Jolt(p, 1.1f);
+        Rumble(340, 250);
+        Toast("bomb", "BOOM", "", C_RED, 1600);
+        try { if (s.ball != null && s.ball.Exists()) s.ball.Delete(); }
+        catch { }
+        s.ball = null;
+        FinishShot(s);
     }
 
     int lastFireTime;

@@ -55,7 +55,7 @@ Contact is found properly. A ball at sixty metres a second crosses a wall betwee
 <ul>
 <li> <b>Normal.</b> A golf ball.</li>
 <li> <b>Fireball.</b> Sets light to whatever it touches and leaves fires burning where it bounced.</li>
-<li> <b>Boom.</b> Flies exactly like a normal ball, then detonates where it lands. Not before.</li>
+<li> <b>Boom.</b> Flies exactly like a normal ball, then detonates the instant it touches down — or hits anything on the way, or lands in water. Not before, and not after.</li>
 <li> <b>Super Shot.</b> Carries fifty times as far, by default, and hits like it. The multiplier is a row in the drawer, from twice to two hundred times. It is not subtle.</li>
 </ul>
 
@@ -65,8 +65,8 @@ One press in the settings drawer, or <b>M</b>.
 <b>A HUD BUILT FOR IT</b>
 
 <ul>
-<li> <b>A range card</b> top left: the club in hand with its carry and a rail of the twelve showing which one and which set, the ball, the session — balls, cars, people, your best drive and your last — and the police.</li>
-<li> <b>A tee marker</b> under his feet with the power meter, right where you are looking when you swing. Amber on the way up, green in the sweet spot, red past it, and it flares when the club connects.</li>
+<li> <b>A range card</b> top left, one line each: the club in hand and how far it carries, the ball, the police, and the session — balls, cars, people and your best drive ever.</li>
+<li> <b>A tee marker</b> under his feet: the club, the carry and the power meter, nothing else, right where you are looking when you swing. Amber on the way up, green in the sweet spot, red past it, and it flares when the club connects.</li>
 <li> <b>A feed</b> on the right for what the ball just did — SMASH!, FORE!, LONGEST DRIVE, BOOM — each with its own picture.</li>
 <li> <b>The carry</b> top centre while the camera is on the ball, in the game's own big font.</li>
 <li> <b>A settings drawer</b> in the card that slides open when you touch the D-pad and closes a few seconds after you stop. Eleven settings, switches drawn as switches, and a line under the list saying what the selected one does.</li>
@@ -122,6 +122,14 @@ The F-key and the letters can be changed in the ini.
 --------------------------------------------------------------------------------
   CHANGELOG
 --------------------------------------------------------------------------------
+
+<b>1.1.2</b>
+
+<ul>
+<li> <b>Boom goes off when it lands.</b> A bounce off the ground happens between two frames, with the ball above the surface in both, so the contact probe never saw it and the ball skipped on for seconds until something else set it off. It now asks the physics whether the ball is still in the air and detonates the first frame it is not — or the moment its fall is thrown back upwards, or when it hits water.</li>
+<li> <b>The card is plainer.</b> One line each for the club, the ball, the police and the session. The twelve-club rail, the state pill, the stat tiles and the blurbs are gone; the settings drawer and its hint line stay.</li>
+<li> The tee marker is the club, the carry and the meter, nothing else.</li>
+</ul>
 
 <b>1.1.1</b>
 

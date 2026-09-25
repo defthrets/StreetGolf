@@ -1,5 +1,5 @@
 ﻿// =====================================================================
-//  STREET GOLF  1.1.1  -  by spitmux
+//  STREET GOLF  1.1.2  -  by spitmux
 //
 //  A driving range anywhere in Los Santos. You stand where you are and
 //  hit ball after ball at the traffic. No hole, no course, no walking
@@ -34,7 +34,7 @@ using Control = GTA.Control;
 public class StreetGolf : Script
 {
     // ---------------- game assets ----------------
-    const string VERSION = "1.1.1";
+    const string VERSION = "1.1.2";
     const string AUTHOR = "spitmux";
 
     const string BALL_MODEL = "prop_golf_ball";
