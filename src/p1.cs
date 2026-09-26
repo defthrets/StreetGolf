@@ -1,5 +1,5 @@
 ﻿// =====================================================================
-//  STREET GOLF  1.1.2  -  by spitmux
+//  STREET GOLF  1.1.3  -  by spitmux
 //
 //  A driving range anywhere in Los Santos. You stand where you are and
 //  hit ball after ball at the traffic. No hole, no course, no walking
@@ -34,7 +34,7 @@ using Control = GTA.Control;
 public class StreetGolf : Script
 {
     // ---------------- game assets ----------------
-    const string VERSION = "1.1.2";
+    const string VERSION = "1.1.3";
     const string AUTHOR = "spitmux";
 
     const string BALL_MODEL = "prop_golf_ball";
@@ -127,6 +127,8 @@ public class StreetGolf : Script
     bool camShake = true;
     float impactPower = 1.0f;     // global multiplier on everything destructive
     float carKnockback = 0.8f;    // how hard a hit shoves the car, 1 is the original
+    float carDentDamage = 220f;   // how deep a full strike dents a panel
+    float carDentRadius = 160f;   // how far round the contact point the dent spreads
     float minImpactSpeed = 9f;    // below this the ball just bounces harmlessly
     bool policeWanted = true;     // master switch: false and the police never react at all
     bool lessLethalCops = true;   // batons and tasers at low stars, if you are not armed
@@ -229,6 +231,11 @@ public class StreetGolf : Script
         public List<Vector3> pts = new List<Vector3>();
         public List<int> times = new List<int>();
         public Vector3 lastPt;
+        public Vector3 prevVel;
+        public bool hasPrevVel;
+        public bool airborne;       // has had clear air under it since it left the tee
+        public Vector3 endPos;      // where a Boom ball went off, for the camera to stay on
+        public bool hasEnd;
     }
     List<Shot> shotsInPlay = new List<Shot>();
 
@@ -349,6 +356,12 @@ public class StreetGolf : Script
         impactPower = GetFloat(kv, "ImpactPower", impactPower);
         carKnockback = GetFloat(kv, "CarKnockback", carKnockback);
         if (carKnockback < 0f) carKnockback = 0f;
+        carDentDamage = GetFloat(kv, "CarDentDamage", carDentDamage);
+        carDentRadius = GetFloat(kv, "CarDentRadius", carDentRadius);
+        if (carDentDamage < 0f) carDentDamage = 0f;
+        if (carDentDamage > 2000f) carDentDamage = 2000f;
+        if (carDentRadius < 1f) carDentRadius = 1f;
+        if (carDentRadius > 2000f) carDentRadius = 2000f;
         minImpactSpeed = GetFloat(kv, "MinImpactSpeed", minImpactSpeed);
         policeWanted = GetBool(kv, "PoliceWanted", policeWanted);
         lessLethalCops = GetBool(kv, "LessLethalCops", lessLethalCops);

@@ -1,5 +1,5 @@
 ﻿// =====================================================================
-//  STREET GOLF  1.1.2  -  by spitmux
+//  STREET GOLF  1.1.3  -  by spitmux
 //
 //  A driving range anywhere in Los Santos. You stand where you are and
 //  hit ball after ball at the traffic. No hole, no course, no walking
@@ -34,7 +34,7 @@ using Control = GTA.Control;
 public class StreetGolf : Script
 {
     // ---------------- game assets ----------------
-    const string VERSION = "1.1.2";
+    const string VERSION = "1.1.3";
     const string AUTHOR = "spitmux";
 
     const string BALL_MODEL = "prop_golf_ball";
@@ -127,6 +127,8 @@ public class StreetGolf : Script
     bool camShake = true;
     float impactPower = 1.0f;     // global multiplier on everything destructive
     float carKnockback = 0.8f;    // how hard a hit shoves the car, 1 is the original
+    float carDentDamage = 220f;   // how deep a full strike dents a panel
+    float carDentRadius = 160f;   // how far round the contact point the dent spreads
     float minImpactSpeed = 9f;    // below this the ball just bounces harmlessly
     bool policeWanted = true;     // master switch: false and the police never react at all
     bool lessLethalCops = true;   // batons and tasers at low stars, if you are not armed
@@ -229,6 +231,11 @@ public class StreetGolf : Script
         public List<Vector3> pts = new List<Vector3>();
         public List<int> times = new List<int>();
         public Vector3 lastPt;
+        public Vector3 prevVel;
+        public bool hasPrevVel;
+        public bool airborne;       // has had clear air under it since it left the tee
+        public Vector3 endPos;      // where a Boom ball went off, for the camera to stay on
+        public bool hasEnd;
     }
     List<Shot> shotsInPlay = new List<Shot>();
 
@@ -349,6 +356,12 @@ public class StreetGolf : Script
         impactPower = GetFloat(kv, "ImpactPower", impactPower);
         carKnockback = GetFloat(kv, "CarKnockback", carKnockback);
         if (carKnockback < 0f) carKnockback = 0f;
+        carDentDamage = GetFloat(kv, "CarDentDamage", carDentDamage);
+        carDentRadius = GetFloat(kv, "CarDentRadius", carDentRadius);
+        if (carDentDamage < 0f) carDentDamage = 0f;
+        if (carDentDamage > 2000f) carDentDamage = 2000f;
+        if (carDentRadius < 1f) carDentRadius = 1f;
+        if (carDentRadius > 2000f) carDentRadius = 2000f;
         minImpactSpeed = GetFloat(kv, "MinImpactSpeed", minImpactSpeed);
         policeWanted = GetBool(kv, "PoliceWanted", policeWanted);
         lessLethalCops = GetBool(kv, "LessLethalCops", lessLethalCops);
@@ -1645,9 +1658,18 @@ public class StreetGolf : Script
 
         // The camera stays on the ball for as long as you want it to, even
         // after the ball has stopped rolling. Only a button press ends it.
-        if (SkipPressed() || CancelPressed() || gone)
+        // A Boom ball no longer exists the moment it goes off, and the camera
+        // used to take that as its cue to go home, so the blast was never
+        // seen. It stays on the blast now, pulled back a little, until the
+        // same button press.
+        if (SkipPressed() || CancelPressed() || (gone && (s == null || !s.hasEnd)))
         {
             FinishWatch();
+            return;
+        }
+        if (gone)
+        {
+            TrackCam(s.endPos, Vector3.Zero, dt, 11f);
             return;
         }
         liveDist = s.dist;
@@ -1966,7 +1988,11 @@ public class StreetGolf : Script
 
         if (!s.done)
         {
-            float lastVz = s.prevVz;      // before ProcessImpact overwrites it
+            Vector3 lastVel = s.prevVel;
+            bool hadVel = s.hasPrevVel;
+            s.prevVel = vel;
+            s.hasPrevVel = true;
+
             ProcessImpact(s, pos, vel, speed, now, me);
 
             // A mode can destroy the ball outright at the moment of contact -
@@ -1978,31 +2004,18 @@ public class StreetGolf : Script
                 return false;
             }
 
-            // BOOM lands. The probe finds walls, cars and people, but a bounce
-            // off the ground happens between two frames with the ball above
-            // the surface in both, so the probe never saw it and the ball
-            // skipped on for seconds until something else set it off. Ask the
-            // physics instead: the first frame it is no longer in the air, or
-            // its fall is thrown back upwards, is the landing.
-            if (s.mode == BallMode.Boom && !s.spent && BoomArmed(s, pos))
+            // a strike the forward probe did not see coming
+            if (hadVel) KickCheck(s, lastVel, vel, dt, now, me);
+            if (s.ball == null || !s.ball.Exists())
             {
-                bool landed = false;
-                try { landed = !Function.Call<bool>(Hash.IS_ENTITY_IN_AIR, s.ball.Handle); }
-                catch { }
-                if (!landed && lastVz < -1.5f && vel.Z > lastVz + 2.5f) landed = true;
-                if (!landed)
-                {
-                    float above = 1f;
-                    try { above = s.ball.HeightAboveGround; }
-                    catch { }
-                    if (above < 0.12f && vel.Z <= 0.5f) landed = true;
-                }
-                if (landed)
-                {
-                    Detonate(s, pos, me);
-                    s.prevPos = pos;
-                    return false;
-                }
+                s.prevPos = pos;
+                return false;
+            }
+
+            if (s.mode == BallMode.Boom && !s.spent && BoomTouchdown(s, pos, vel, dt, me))
+            {
+                s.prevPos = pos;
+                return false;
             }
 
             if (!s.splashed && (s.ball.IsInWater || BelowWater(pos)))
@@ -2025,11 +2038,22 @@ public class StreetGolf : Script
                 return false;
             }
 
-            float hag = 0f;
-            try { hag = s.ball.HeightAboveGround; }
-            catch { }
-            if (speed < 0.2f && hag < 0.6f) s.rest += dt; else s.rest = 0f;
-            if (s.rest > 0.7f || s.age > life || pos.Z < -80f) FinishShot(s);
+            // Still for most of a second is at rest. Speed alone decides it:
+            // the height check that used to sit alongside asked the game how
+            // high a golf ball was, which it does not answer reliably, and a
+            // ball at the top of its arc is never slow for that long.
+            if (speed < 0.2f) s.rest += dt; else s.rest = 0f;
+            if (s.rest > 0.7f || s.age > life || pos.Z < -80f)
+            {
+                // a Boom ball that never met anything goes off where it stops
+                if (s.mode == BallMode.Boom && !s.spent && pos.Z >= -80f)
+                {
+                    BoomAtRest(s, pos, me);
+                    s.prevPos = pos;
+                    return false;
+                }
+                FinishShot(s);
+            }
         }
 
         s.prevPos = pos;
@@ -2072,6 +2096,8 @@ public class StreetGolf : Script
     // Synchronous probe: the result is available on the same frame it is
     // started, so a ball travelling 60 m/s never slips through a wall between
     // two ticks the way an async shape test would allow.
+    const int PROBE_FLAGS = 1 | 2 | 4 | 8 | 16 | 64;
+
     bool SweepHit(Vector3 a, Vector3 b, Entity ignore, out Vector3 hitPos, out Vector3 normal,
                   out MaterialHash mat, out Entity hitEnt)
     {
@@ -2082,8 +2108,14 @@ public class StreetGolf : Script
         try
         {
             int ignoreH = (ignore != null && ignore.Exists()) ? ignore.Handle : 0;
+            // Map, vehicles, people, objects and glass; not foliage, which the
+            // ball passes through, and which a Boom ball has no business
+            // going off in. The last argument used to be 7, which includes
+            // "ignore glass": every probe went straight through a car window
+            // as though it were not there, so glass was never what the ball
+            // was found to have hit, and the window that broke was a guess.
             int handle = Function.Call<int>(Hash.START_EXPENSIVE_SYNCHRONOUS_SHAPE_TEST_LOS_PROBE,
-                a.X, a.Y, a.Z, b.X, b.Y, b.Z, (int)IntersectFlags.Everything, ignoreH, 7);
+                a.X, a.Y, a.Z, b.X, b.Y, b.Z, PROBE_FLAGS, ignoreH, 4);
             OutputArgument oHit = new OutputArgument();
             OutputArgument oPos = new OutputArgument();
             OutputArgument oNorm = new OutputArgument();
@@ -2169,26 +2201,25 @@ public class StreetGolf : Script
         s.prevVz = vel.Z;
     }
 
-    // Second and third opinions, so a hit is never silently dropped: bodies
-    // standing exactly where the ball is, and the physics collision record.
-    // Backstop for the rare contact the swept probe misses: someone or
-    // something standing exactly where the ball is.
+    // Backstop for the rare contact the probes miss: someone or something the
+    // ball is actually touching.
     //
-    // This used to consult HasCollided as well, which was a mistake. That
-    // flag stays true once an entity has touched anything at all, so from
-    // the moment a ball brushed the tee it reported a fresh collision on
-    // every later frame. That is why a Boom ball detonated in mid air the
-    // instant it armed. Contact now comes only from the probe and from
-    // these two proximity checks.
+    // This used to take any car whose CENTRE was within a couple of metres of
+    // the ball, which is a ball sailing a metre over the roof: a dent in a car
+    // nothing touched, and a Boom ball going off in mid air over traffic. It
+    // has to be inside the car's own box now, or inside a person's outline.
+    // It also used to consult HasCollided, which stays true once a ball has
+    // touched anything at all, and set Boom off the instant it armed.
     void FallbackImpact(Shot s, Vector3 cur, Vector3 vel, float speed, Vector3 velN, int now, Ped me)
     {
         if (speed < minImpactSpeed) return;
         if ((shotTickCounter % 2) != 0) return;
+        if (s.age < 0.15f || s.origin.DistanceTo(cur) < 2f) return;   // still leaving the tee
         Vector3 back = Vector3.Zero - velN;
 
         try
         {
-            Ped[] near = World.GetNearbyPeds(cur, 1.2f);
+            Ped[] near = World.GetNearbyPeds(cur, 1.4f);
             if (near != null)
             {
                 for (int i = 0; i < near.Length; i++)
@@ -2196,6 +2227,10 @@ public class StreetGolf : Script
                     Ped pd = near[i];
                     if (pd == null || !pd.Exists()) continue;
                     if (me != null && pd.Handle == me.Handle) continue;
+                    // a standing person, from the feet to the top of the head
+                    Vector3 o = pd.Position;
+                    float dx = cur.X - o.X, dy = cur.Y - o.Y, dz = cur.Z - o.Z;
+                    if (dx * dx + dy * dy > 0.45f * 0.45f || dz < -1.1f || dz > 0.95f) continue;
                     Apply(s, pd, cur, back, default(MaterialHash), vel, speed, now, me);
                     return;
                 }
@@ -2205,21 +2240,68 @@ public class StreetGolf : Script
 
         try
         {
-            Vehicle[] vs = World.GetNearbyVehicles(cur, 2.2f);
+            Vehicle[] vs = World.GetNearbyVehicles(cur, 8f);
             if (vs != null)
             {
-                float best = 2.2f * 2.2f;
-                Vehicle hit = null;
                 for (int i = 0; i < vs.Length; i++)
                 {
-                    if (vs[i] == null || !vs[i].Exists()) continue;
-                    float dd = vs[i].Position.DistanceToSquared(cur);
-                    if (dd < best) { best = dd; hit = vs[i]; }
+                    Vehicle v = vs[i];
+                    if (v == null || !v.Exists()) continue;
+                    if (!InsideBox(v, cur, 0.15f)) continue;
+                    Apply(s, v, cur, back, default(MaterialHash), vel, speed, now, me);
+                    return;
                 }
-                if (hit != null) Apply(s, hit, cur, back, default(MaterialHash), vel, speed, now, me);
             }
         }
         catch { }
+    }
+
+    // Is a point inside the entity's model box, grown by a margin?
+    static bool InsideBox(Entity ent, Vector3 world, float margin)
+    {
+        OutputArgument omin = new OutputArgument();
+        OutputArgument omax = new OutputArgument();
+        Function.Call(Hash.GET_MODEL_DIMENSIONS, ent.Model.Hash, omin, omax);
+        Vector3 mn = omin.GetResult<Vector3>();
+        Vector3 mx = omax.GetResult<Vector3>();
+        Vector3 loc = Function.Call<Vector3>(Hash.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS,
+            ent.Handle, world.X, world.Y, world.Z);
+        return loc.X >= mn.X - margin && loc.X <= mx.X + margin
+            && loc.Y >= mn.Y - margin && loc.Y <= mx.Y + margin
+            && loc.Z >= mn.Z - margin && loc.Z <= mx.Z + margin;
+    }
+
+    // A strike the forward probe did not see coming. At a low frame rate or a
+    // high speed a ball can reach a surface and come off it between two
+    // frames, outside it in both, and a probe drawn between the two cuts the
+    // corner and finds nothing. The bounce still shows in the velocity: the
+    // ball has been knocked off the line gravity alone would have given it.
+    // When that happens, look back along the line it arrived on.
+    void KickCheck(Shot s, Vector3 lastVel, Vector3 vel, float dt, int now, Ped me)
+    {
+        if (now - s.lastImpact < 80) return;
+        if (s.age < 0.12f || s.origin.DistanceTo(s.prevPos) < 1.5f) return;   // leaving the tee
+        float lastSpeed = lastVel.Length();
+        if (lastSpeed < 2f) return;
+
+        Vector3 expect = lastVel + new Vector3(0f, 0f, -9.8f * dt);
+        float kick = (vel - expect).Length();
+        float need = lastSpeed * 0.18f;
+        if (need < 2.5f) need = 2.5f;
+        if (kick < need) return;
+
+        Vector3 dir = lastVel / lastSpeed;
+        float reach = lastSpeed * dt * 1.6f + 0.6f;
+        if (reach > 12f) reach = 12f;
+        dbgProbes++;
+        Vector3 p, normal;
+        MaterialHash mat;
+        Entity e;
+        if (!SweepHit(s.prevPos - dir * 0.25f, s.prevPos + dir * reach, s.ball, out p, out normal, out mat, out e)) return;
+        if (IsMine(e, me)) return;
+        if ((e == null || !e.Exists()) && -Vector3.Dot(dir, normal) < 0.12f) return;   // a graze
+        dbgHits++;
+        Apply(s, e, p, normal, mat, lastVel, lastSpeed, now, me);
     }
 
     float hitBoost = 1f;
@@ -2279,9 +2361,56 @@ public class StreetGolf : Script
         return s.age >= 0.25f && s.origin.DistanceTo(at) >= 6f;
     }
 
+    // BOOM goes off the instant it comes down. A short probe straight down
+    // from the ball, every frame: while there is clear air under it, it is
+    // flying; once it has flown, the first frame the surface below it is
+    // within one frame's fall is the landing, and the blast goes on that
+    // surface. 1.1.2 asked the game whether the ball was in the air instead,
+    // and the game only answers that for people and vehicles: for a golf
+    // ball the answer was always no, so it went off a quarter of a second
+    // after the club met it.
+    bool BoomTouchdown(Shot s, Vector3 pos, Vector3 vel, float dt, Ped me)
+    {
+        float fall = vel.Z < 0f ? -vel.Z * dt : 0f;
+        float reach = 0.6f + fall * 1.5f;
+        Vector3 p, normal;
+        MaterialHash mat;
+        Entity e;
+        bool below = SweepHit(pos + new Vector3(0f, 0f, 0.05f), pos - new Vector3(0f, 0f, reach), s.ball,
+                              out p, out normal, out mat, out e);
+        if (below && IsMine(e, me)) below = false;
+        if (!below)
+        {
+            s.airborne = true;
+            return false;
+        }
+        if (!s.airborne || !BoomArmed(s, pos)) return false;
+        if (vel.Z > 0.5f) return false;                          // still climbing away from it
+        if (pos.Z - p.Z > 0.18f + fall * 1.2f) return false;     // not down yet
+        Detonate(s, p, me);
+        return true;
+    }
+
+    // A Boom ball that never met anything worth going off on, a putt or a
+    // shot that trickled to a stop, goes off where it stops. Unless that is
+    // at the golfer's feet, when it is a dud.
+    void BoomAtRest(Shot s, Vector3 pos, Ped me)
+    {
+        if (me != null && me.Exists() && me.Position.DistanceTo(pos) < 8f)
+        {
+            s.spent = true;
+            Toast("bomb", "DUD", "too close to go off", C_MUTE, 1400);
+            FinishShot(s);
+            return;
+        }
+        Detonate(s, pos, me);
+    }
+
     void Detonate(Shot s, Vector3 p, Ped me)
     {
         s.spent = true;
+        s.endPos = p;
+        s.hasEnd = true;
         try { World.AddExplosion(p, ExplosionType.Grenade, 4.0f, 1.5f, me, true, false); }
         catch { }
         Jolt(p, 1.1f);
@@ -2358,22 +2487,45 @@ public class StreetGolf : Script
         return false;
     }
 
-    // Picks the pane the ball actually went through from where it landed in the
-    // car body space, so a shot through the driver door does not blow out the
-    // rear screen. Glass goes whenever the ball struck glass, and only needs a
-    // hard hit when it struck bodywork near the windows.
-    void SmashGlass(Vehicle v, Vector3 loc, MaterialHash mat, float pw)
-    {
-        bool hitGlass = IsGlass(mat);
-        if (!hitGlass && (pw < 0.5f || loc.Z < 0.2f)) return;
+    // The eight panes, in the order SMASH_VEHICLE_WINDOW numbers them, by the
+    // name of the bone each one hangs on.
+    static readonly string[] WINDOW_BONES = { "window_lf", "window_rf", "window_lr", "window_rr",
+                                              "window_lm", "window_rm", "windscreen", "windscreen_r" };
 
-        int win;
-        if (loc.Y > 1.15f) win = 6;                       // windscreen
-        else if (loc.Y < -1.15f) win = 7;                 // rear screen
-        else if (loc.Y >= 0f) win = loc.X > 0f ? 1 : 0;   // front side
-        else win = loc.X > 0f ? 3 : 2;                    // rear side
-        try { Function.Call(Hash.SMASH_VEHICLE_WINDOW, v.Handle, win); }
-        catch { }
+    // The pane nearest the point the ball struck, if one is close enough and
+    // still in one piece. Found from the car's own bones rather than guessed
+    // from the shape of an average saloon, which put the windscreen out past
+    // the bonnet and smashed a side window when the windscreen was hit.
+    int NearestWindow(Vehicle v, Vector3 p, float within)
+    {
+        int best = -1;
+        float bd = within * within;
+        for (int i = 0; i < WINDOW_BONES.Length; i++)
+        {
+            try
+            {
+                int bone = Function.Call<int>(Hash.GET_ENTITY_BONE_INDEX_BY_NAME, v.Handle, WINDOW_BONES[i]);
+                if (bone < 0) continue;
+                if (!Function.Call<bool>(Hash.IS_VEHICLE_WINDOW_INTACT, v.Handle, i)) continue;
+                Vector3 bp = Function.Call<Vector3>(Hash.GET_WORLD_POSITION_OF_ENTITY_BONE, v.Handle, bone);
+                float d = bp.DistanceToSquared(p);
+                if (d < bd) { bd = d; best = i; }
+            }
+            catch { }
+        }
+        return best;
+    }
+
+    // A dent where the ball struck, deeper the harder it hit. The last two
+    // figures SET_VEHICLE_DAMAGE takes are not metres: the game's own scripts,
+    // and the melee dents in Hoodrich, pass a hundred or more. The half a
+    // metre this used to send made no visible mark at all, which is why a
+    // car struck at sixty metres a second looked untouched.
+    void Dent(Vehicle v, Vector3 loc, float pw, float boost)
+    {
+        float dmg = carDentDamage * (0.3f + 0.7f * pw) * boost;
+        float rad = carDentRadius * (0.75f + 0.25f * pw);
+        Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg, rad, true);
     }
 
     // ---- vehicles ---------------------------------------------------------
@@ -2387,6 +2539,13 @@ public class StreetGolf : Script
         try { loc = Function.Call<Vector3>(Hash.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS, v.Handle, p.X, p.Y, p.Z); }
         catch { }
 
+        // a super shot counts as a full strike whatever the meter said
+        float pwx = pw * hitBoost;
+        if (pwx > 1.4f) pwx = 1.4f;
+        pw = pwx;
+
+        bool glass = IsGlass(mat);
+        bool pane = false;
         try
         {
             if (carDamage && heavy)
@@ -2395,27 +2554,25 @@ public class StreetGolf : Script
                 Function.Call(Hash.SET_ENTITY_CAN_BE_DAMAGED, v.Handle, true);
                 Function.Call(Hash.SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED, v.Handle, true);
 
-                // Three passes at the contact point. The last argument decides
-                // whether the deformation is focused on the model, and which
-                // value actually works varies by build - the wrong one silently
-                // does nothing at all - so both are sent, then a wider, softer
-                // pass so the metal around the crater pulls in with it.
-                float dmgBoost = hitBoost > 3f ? 3f : hitBoost;
-                float dmg = (900f + 3200f * pw) * dmgBoost;
-                float tight = 0.30f + 0.35f * pw;
-                Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg, tight, true);
-                Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg, tight, false);
-                Function.Call(Hash.SET_VEHICLE_DAMAGE, v.Handle, loc.X, loc.Y, loc.Z, dmg * 0.5f, 1.0f + 1.1f * pw, false);
+                // Glass the ball went into always goes. A firm hit on the frame
+                // round a window, a pillar or the top of a door, takes that
+                // window with it.
+                int win = NearestWindow(v, p, glass ? 1.4f : 0.65f);
+                if (win >= 0 && (glass || pw >= 0.3f))
+                {
+                    Function.Call(Hash.SMASH_VEHICLE_WINDOW, v.Handle, win);
+                    pane = true;
+                }
+
+                // Bodywork dents where it was struck. Through the glass, only
+                // a big hit carries on into the frame behind it.
+                if (!glass || pw >= 0.6f)
+                    Dent(v, loc, pw, hitBoost > 2f ? 2f : hitBoost);
 
                 float bh = Function.Call<float>(Hash.GET_VEHICLE_BODY_HEALTH, v.Handle);
                 float nh = bh - (60f + 220f * pw) * hitBoost;
                 if (nh < 60f) nh = 60f;
                 Function.Call(Hash.SET_VEHICLE_BODY_HEALTH, v.Handle, nh);
-
-                // a super shot counts as a full strike whatever the meter said
-                float pwx = pw * hitBoost;
-                if (pwx > 1.4f) pwx = 1.4f;
-                pw = pwx;
 
                 // straight through the bonnet hurts the engine
                 if (loc.Y > 1.0f && loc.Z < 0.45f && pw > 0.4f)
@@ -2432,8 +2589,6 @@ public class StreetGolf : Script
                     int wheel = loc.Y > 0f ? (loc.X > 0f ? 1 : 0) : (loc.X > 0f ? 5 : 4);
                     Function.Call(Hash.SET_VEHICLE_TYRE_BURST, v.Handle, wheel, false, 1000f);
                 }
-
-                SmashGlass(v, loc, mat, pw);
             }
 
             Function.Call(Hash.START_VEHICLE_ALARM, v.Handle);
@@ -2464,7 +2619,7 @@ public class StreetGolf : Script
         Rumble(260, (int)(140 + 115 * pw));
         string nm = "car";
         try { nm = v.LocalizedName; } catch { }
-        Toast("car", pw > 0.7f ? "SMASH!" : "DINGER!", nm, C_AMBER, 2000);
+        Toast("car", pane || pw > 0.7f ? "SMASH!" : "DINGER!", pane ? nm + ", window out" : nm, C_AMBER, 2000);
         SaveRecords();
     }
 
@@ -2606,12 +2761,17 @@ public class StreetGolf : Script
             cam.Position = camPos;
             cam.PointAt(ballPos);
             cam.IsActive = true;
-            Function.Call(Hash.RENDER_SCRIPT_CAMS, true, true, 350, true, false);
+            Function.Call(Hash.RENDER_SCRIPT_CAMS, true, true, 350, true, false, 0);
         }
         catch { cam = null; }
     }
 
     void TrackCam(Vector3 ballPos, Vector3 vel, float dt)
+    {
+        TrackCam(ballPos, vel, dt, 6.5f);
+    }
+
+    void TrackCam(Vector3 ballPos, Vector3 vel, float dt, float minBack)
     {
         if (cam == null || !cam.Exists()) return;
         Vector3 hv = new Vector3(vel.X, vel.Y, 0f);
@@ -2626,6 +2786,7 @@ public class StreetGolf : Script
         float speed = vel.Length();
         float back = 6.5f + (speed > 60f ? (speed - 60f) * 0.03f : 0f);
         if (back > 22f) back = 22f;
+        if (back < minBack) back = minBack;
         float rate = speed > 80f ? 40f : 6f;
         Vector3 want = ballPos - camDir * back + new Vector3(0f, 0f, 2.6f + (back - 6.5f) * 0.25f);
         float gz;
@@ -2639,7 +2800,7 @@ public class StreetGolf : Script
     {
         try
         {
-            Function.Call(Hash.RENDER_SCRIPT_CAMS, false, true, 350, true, false);
+            Function.Call(Hash.RENDER_SCRIPT_CAMS, false, true, 350, true, false, 0);
             if (cam != null && cam.Exists()) cam.Delete();
         }
         catch { }

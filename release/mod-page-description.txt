@@ -41,7 +41,7 @@ Every one borrows its base club's prop, animation and impact timing, so the extr
 Everything scales with how fast the ball is going when it connects, so a putt rolls off harmlessly and a full driver does real harm.
 
 <ul>
-<li> <b>Cars take it exactly where the ball lands.</b> The panel caves in at the point of contact, body health goes with it, the alarm goes off and it rocks on its springs. A hard one above the waistline puts a window out — the right window, worked out from where on the body it struck — and a low one on a corner takes the tyre off the rim. Straight through the bonnet hurts the engine.</li>
+<li> <b>Cars take it exactly where the ball lands.</b> A dent at the point of contact, deeper the harder it hit; body health goes with it, the alarm goes off and it rocks on its springs. A ball into a window shatters that window — the one it actually went into, found from the car's own window bones — and a firm hit on the frame round a window takes it too. A low one on a corner takes the tyre off the rim, and straight through the bonnet hurts the engine.</li>
 <li> <b>Walls, roads and glass take the game's own impact damage.</b> Chipped concrete, cracked render, spidered glass and a puff of dust: the marks the game already knows how to leave.</li>
 <li> <b>Pedestrians go down.</b> FORE! They ragdoll, take damage that scales with the strike, and are thrown along the ball's line.</li>
 <li> <b>Loose props get shoved.</b> Bins, cones, signs.</li>
@@ -55,7 +55,7 @@ Contact is found properly. A ball at sixty metres a second crosses a wall betwee
 <ul>
 <li> <b>Normal.</b> A golf ball.</li>
 <li> <b>Fireball.</b> Sets light to whatever it touches and leaves fires burning where it bounced.</li>
-<li> <b>Boom.</b> Flies exactly like a normal ball, then detonates the instant it touches down — or hits anything on the way, or lands in water. Not before, and not after.</li>
+<li> <b>Boom.</b> Flies exactly like a normal ball, then detonates the instant it touches down — or hits anything on the way, or lands in water. Not before, and not after. The camera stays on the blast until you are done looking.</li>
 <li> <b>Super Shot.</b> Carries fifty times as far, by default, and hits like it. The multiplier is a row in the drawer, from twice to two hundred times. It is not subtle.</li>
 </ul>
 
@@ -122,6 +122,17 @@ The F-key and the letters can be changed in the ini.
 --------------------------------------------------------------------------------
   CHANGELOG
 --------------------------------------------------------------------------------
+
+<b>1.1.3</b>
+
+<ul>
+<li> <b>Boom really goes off when it lands.</b> 1.1.2 asked the game whether the ball was still in the air, and the game only answers that for people and vehicles — for a golf ball the answer was always no, so it went off a moment after the club met it. It now looks straight down from the ball every frame: clear air under it means it is flying, and the first frame the ground is within one frame's fall is the landing, with the blast on the ground rather than above it. A bounce the probes miss is caught from the ball's velocity being knocked off its line.</li>
+<li> <b>The camera stays on the blast</b> until you press A. It used to go home the instant the ball exploded, so you never saw it.</li>
+<li> <b>Car windows shatter when the ball goes into them.</b> Every contact probe was being sent with the game's "ignore glass" option, so the ball was never found to have hit glass, and the window that broke was guessed from the shape of an average car. Glass is seen now, and the pane is picked from the car's own window bones.</li>
+<li> <b>Panels dent.</b> The dent was sent at half a metre in a native that takes the game's own units, where a melee dent is a hundred or more — it made no visible mark. CarDentDamage and CarDentRadius in the ini set it.</li>
+<li> <b>No more phantom hits.</b> A ball sailing a metre over a car's roof counted as hitting it — a dent in a car nothing touched, and a Boom ball going off over traffic. It now has to be inside the car's own box, or a person's outline.</li>
+<li> A Boom ball that trickles to a stop goes off where it stops, or fizzles if that is at your feet.</li>
+</ul>
 
 <b>1.1.2</b>
 

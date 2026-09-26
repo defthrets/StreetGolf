@@ -1,4 +1,4 @@
-# Street Golf 1.1.2
+# Street Golf 1.1.3
 
 A driving range anywhere in Los Santos. You stand where you are and hit ball
 after ball at the traffic. No hole, no course, no walking after the ball.
@@ -127,7 +127,7 @@ Three sets of four, cycled with the shoulder buttons.
 | --- | --- |
 | `Normal` | an ordinary golf ball |
 | `Fire` | sets light to everything it touches and leaves fires burning |
-| `Boom` | flies normally, then detonates the instant it touches down, or hits anything, or lands in water |
+| `Boom` | flies normally, then detonates the instant it touches down, or hits anything, or lands in water. The camera stays on the blast until you press `A`. One that trickles to a stop goes off where it stops, unless that is at your feet |
 | `Super` | carries fifty times as far by default, and hits like it. The multiplier is a row in the drawer, from x2 to x200 |
 
 Set the starting mode with `BallMode` in the ini, or cycle with `M`.
@@ -141,9 +141,11 @@ rolls harmlessly and a full driver does real harm.
 
 - **Walls and roads** take the game's own impact damage: chipped concrete,
   cracked render, spidered glass, and a puff of dust.
-- **Cars** get a panel caved in exactly where the ball lands, lose body health,
-  set off the alarm and rock on their springs. A hard hit above the waistline
-  knocks a window out, and a low one at a corner takes a tyre off the rim.
+- **Cars** get a dent exactly where the ball lands, lose body health, set off
+  the alarm and rock on their springs. A ball into a window shatters that
+  window, the one it actually hit, found from the car's own window bones. A
+  firm hit on the frame round a window takes that window too, and a low one at
+  a corner takes a tyre off the rim.
 - **Pedestrians** ragdoll, take damage that scales with the strike, and are
   thrown along the ball's line.
 
@@ -153,7 +155,8 @@ matters: physics halts the ball a fraction short of what it hits, so a probe
 drawn only between two frame positions runs entirely outside every wall.
 
 `ImpactPower` scales the whole system from `0` to `3`. `CarKnockback` scales
-just the shove a car takes.
+just the shove a car takes, and `CarDentDamage` and `CarDentRadius` how deep and
+how wide a dent is.
 
 ---
 
@@ -218,11 +221,16 @@ the parts in `src/`. Edit those, not the single file.
 ./build.sh --install           # ...and copy into the game scripts folder
 ./build.sh --zip               # ...and build release/StreetGolf-<version>.zip
 python tools/make_icons.py     # redraw StreetGolf/icons (needs Pillow)
+python tools/audit_natives.py natives.json   # check every native call's argument count
 ```
 
 The build fails if the script stops compiling against SHVDN 3.6, the 3.7
 nightlies or 3.9 Enhanced, which is how cross-version support is kept honest.
 The reference assemblies are third party binaries and are not committed.
+
+A native called with the wrong number of arguments is not a compile error, it
+is a crash to desktop the first time the line runs, so `tools/audit_natives.py`
+checks every call against [alloc8or's native database](https://github.com/alloc8or/gta5-nativedb-data).
 
 The icons are drawn by `tools/make_icons.py` as white silhouettes and tinted
 by the script at draw time, so a new icon is a few lines of Python and a name.

@@ -1153,9 +1153,18 @@
 
         // The camera stays on the ball for as long as you want it to, even
         // after the ball has stopped rolling. Only a button press ends it.
-        if (SkipPressed() || CancelPressed() || gone)
+        // A Boom ball no longer exists the moment it goes off, and the camera
+        // used to take that as its cue to go home, so the blast was never
+        // seen. It stays on the blast now, pulled back a little, until the
+        // same button press.
+        if (SkipPressed() || CancelPressed() || (gone && (s == null || !s.hasEnd)))
         {
             FinishWatch();
+            return;
+        }
+        if (gone)
+        {
+            TrackCam(s.endPos, Vector3.Zero, dt, 11f);
             return;
         }
         liveDist = s.dist;
